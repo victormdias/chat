@@ -123,11 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
     mContactsCountBadge: document.getElementById('mContactsCountBadge'),
     mContactsList: document.getElementById('mContactsList'),
     mBackupContactsBtn: document.getElementById('mBackupContactsBtn'),
+    mOptBackup: document.getElementById('mOptBackup'),
+    mBtnModalRestoreBackup: document.getElementById('mBtnModalRestoreBackup'),
     mBackupModal: document.getElementById('mBackupModal'),
     mCloseBackupModalBtn: document.getElementById('mCloseBackupModalBtn'),
     mBtnDownloadJsonBackup: document.getElementById('mBtnDownloadJsonBackup'),
     mContactsJsonFileInput: document.getElementById('mContactsJsonFileInput'),
     mBtnUploadJsonBackup: document.getElementById('mBtnUploadJsonBackup'),
+    mBtnRestoreServerBackup: document.getElementById('mBtnRestoreServerBackup'),
     mChkAutoDownloadBackup: document.getElementById('mChkAutoDownloadBackup'),
     mBackupDataTextarea: document.getElementById('mBackupDataTextarea'),
     mBtnCopyCode: document.getElementById('mBtnCopyCode'),
@@ -449,11 +452,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (contacts.length === 0) {
       elements.mContactsList.innerHTML = `
-        <div class="m-empty-contacts">
-          Nenhum amigo guardado ainda.<br>
-          <small style="opacity:0.8">Insira um ID e clique em Guardar ou Conectar.</small>
+        <div class="m-empty-contacts" style="display:flex; flex-direction:column; align-items:center; gap:10px; padding:16px 10px; text-align:center;">
+          <span>Nenhum amigo guardado ainda neste telemóvel.</span>
+          <button type="button" class="m-btn m-btn-secondary" id="mBtnEmptyRestore" style="font-size:0.82rem; padding:8px 16px; gap:6px; font-weight:700; color:var(--primary); border-color:rgba(2, 132, 199, 0.4); background:rgba(2, 132, 199, 0.06);">
+            <i data-lucide="folder-sync"></i> Restaurar Amigos (.json)
+          </button>
+          <small style="opacity:0.8">Ou adicione um amigo pelo botão acima.</small>
         </div>
       `;
+      const btnEmpty = document.getElementById('mBtnEmptyRestore');
+      if (btnEmpty) {
+        btnEmpty.addEventListener('click', openMobileBackupModal);
+      }
+      if (window.lucide) window.lucide.createIcons();
       return;
     }
 
@@ -723,35 +734,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function processMobileJsonFile(file) {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
-      return showToast('Por favor selecione um ficheiro .json válido.');
-    }
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const parsed = JSON.parse(evt.target.result);
         handleMobileRestoreFromJson(parsed, file.name);
       } catch (err) {
-        showToast('Erro: o ficheiro não contém JSON válido.');
+        showToast('Erro: o ficheiro não contém dados válidos de amigos em JSON.');
       }
     };
-    reader.onerror = () => showToast('Erro ao ler o ficheiro.');
+    reader.onerror = () => showToast('Erro ao ler o ficheiro no telemóvel.');
     reader.readAsText(file);
   }
 
-  // Abrir Modal de Backup Mobile
+  // Função centralizada para abrir o modal de Restaurar e Backup no Telemóvel
+  function openMobileBackupModal() {
+    const contacts = getStoredContacts();
+    if (elements.mBackupDataTextarea) {
+      elements.mBackupDataTextarea.value = contacts.length > 0 ? JSON.stringify(contacts, null, 2) : '';
+    }
+    if (elements.mChkAutoDownloadBackup) {
+      elements.mChkAutoDownloadBackup.checked = localStorage.getItem('nexus_auto_download_json') === 'true';
+    }
+    elements.mMoreDropdown?.classList.add('hidden');
+    closeAddFriendModal();
+    elements.mBackupModal?.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  // Abrir Modal de Backup / Restaurar Mobile (pelo botão Meus Amigos, pelo menu 3 pontinhos ou pelo modal de adicionar amigo)
   if (elements.mBackupContactsBtn) {
-    elements.mBackupContactsBtn.addEventListener('click', () => {
-      const contacts = getStoredContacts();
-      if (elements.mBackupDataTextarea) {
-        elements.mBackupDataTextarea.value = contacts.length > 0 ? JSON.stringify(contacts, null, 2) : '';
-      }
-      if (elements.mChkAutoDownloadBackup) {
-        elements.mChkAutoDownloadBackup.checked = localStorage.getItem('nexus_auto_download_json') === 'true';
-      }
-      elements.mBackupModal?.classList.remove('hidden');
-      if (window.lucide) window.lucide.createIcons();
-    });
+    elements.mBackupContactsBtn.addEventListener('click', openMobileBackupModal);
+  }
+  if (elements.mOptBackup) {
+    elements.mOptBackup.addEventListener('click', openMobileBackupModal);
+  }
+  if (elements.mBtnModalRestoreBackup) {
+    elements.mBtnModalRestoreBackup.addEventListener('click', openMobileBackupModal);
   }
 
   if (elements.mCloseBackupModalBtn) {
@@ -779,6 +798,24 @@ document.addEventListener('DOMContentLoaded', () => {
   if (elements.mBtnUploadJsonBackup && elements.mContactsJsonFileInput) {
     elements.mBtnUploadJsonBackup.addEventListener('click', () => {
       elements.mContactsJsonFileInput.click();
+    });
+  }
+
+  // Botão Restaurar do Servidor / Nuvem no Telemóvel
+  if (elements.mBtnRestoreServerBackup) {
+    elements.mBtnRestoreServerBackup.addEventListener('click', async () => {
+      showToast('A verificar cópia de segurança no servidor...');
+      try {
+        const res = await fetch('/api/backup');
+        if (!res.ok) throw new Error('Servidor indisponível');
+        const data = await res.json();
+        if (data.empty || !data || (Array.isArray(data) && data.length === 0) || (data.contacts && data.contacts.length === 0)) {
+          return showToast('Nenhum backup encontrado no servidor ainda.');
+        }
+        handleMobileRestoreFromJson(data, 'Servidor');
+      } catch (err) {
+        showToast('Não foi possível obter backup do servidor: ' + (err.message || 'Erro de rede'));
+      }
     });
   }
 
@@ -1659,17 +1696,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // SISTEMA DE MAIS OPÇÕES MOBILE (3 PONTINHOS)
   // =========================================================================
   if (elements.mMoreBtn && elements.mMoreDropdown) {
-    elements.mMoreBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    const toggleMoreDropdown = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       elements.mSearchBar?.classList.add('hidden');
-      elements.mMoreDropdown.classList.toggle('hidden');
-    });
+      const willShow = elements.mMoreDropdown.classList.contains('hidden');
+      if (willShow) {
+        elements.mMoreDropdown.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+      } else {
+        elements.mMoreDropdown.classList.add('hidden');
+      }
+    };
+
+    elements.mMoreBtn.addEventListener('click', toggleMoreDropdown);
 
     document.addEventListener('click', (e) => {
-      if (elements.mMoreDropdown && !elements.mMoreDropdown.contains(e.target) && e.target !== elements.mMoreBtn) {
+      if (!elements.mMoreDropdown || elements.mMoreDropdown.classList.contains('hidden')) return;
+      if (!elements.mMoreDropdown.contains(e.target) && !e.target.closest('#mMoreBtn')) {
         elements.mMoreDropdown.classList.add('hidden');
       }
     });
+
+    document.addEventListener('touchstart', (e) => {
+      if (!elements.mMoreDropdown || elements.mMoreDropdown.classList.contains('hidden')) return;
+      if (!elements.mMoreDropdown.contains(e.target) && !e.target.closest('#mMoreBtn')) {
+        elements.mMoreDropdown.classList.add('hidden');
+      }
+    }, { passive: true });
   }
 
   if (elements.mOptExportChat) {
@@ -1850,7 +1906,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (elements.mOptHistory) {
-    elements.mOptHistory.addEventListener('click', () => openMobileHistoryModal(client.remotePeerId));
+    elements.mOptHistory.addEventListener('click', () => {
+      elements.mMoreDropdown?.classList.add('hidden');
+      openMobileHistoryModal(client.remotePeerId);
+    });
   }
 
   if (elements.mCloseHistoryBtn) {

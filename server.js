@@ -163,8 +163,8 @@ const server = http.createServer((req, res) => {
         });
         fs.createReadStream(defaultBackupFile).pipe(res);
       } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Nenhum ficheiro de backup encontrado no servidor.' }));
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ empty: true, contacts: [], message: 'Nenhum ficheiro de backup guardado no servidor ainda.' }));
       }
       return;
     }

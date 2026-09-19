@@ -411,17 +411,29 @@ body {
   position: relative;
 }
 
+@keyframes fadeInDropdown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .m-more-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 12px;
-  width: 220px;
+  position: fixed !important;
+  top: 64px !important;
+  right: 12px !important;
+  width: 250px;
+  max-width: calc(100vw - 24px);
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: 6px;
-  z-index: 100;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  padding: 8px;
+  z-index: 99999 !important;
   display: flex;
   flex-direction: column;
   gap: 2px;

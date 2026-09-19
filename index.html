@@ -627,7 +627,7 @@
           </button>
 
           <!-- INPUT DE FICHEIRO ESCONDIDO -->
-          <input type="file" id="contactsJsonFileInput" accept=".json,application/json" style="display:none;">
+          <input type="file" id="contactsJsonFileInput" accept=".json,application/json,text/plain,*/*" style="display:none;">
 
           <!-- ÁREA CLICÁVEL / DRAG & DROP PARA RESTAURAR FICHEIRO JSON -->
           <div id="backupDropZone" style="border:2px dashed rgba(16, 185, 129, 0.4); background:rgba(16, 185, 129, 0.05); border-radius:var(--radius-md); padding:16px; text-align:center; cursor:pointer; transition:all 0.2s ease;">
@@ -637,6 +637,18 @@
             <div style="font-weight:700; font-size:0.88rem; color:#065f46; margin-bottom:2px;">Carregar Ficheiro JSON para Restaurar</div>
             <div style="font-size:0.75rem; color:var(--text-muted);">Clique para escolher o ficheiro .json ou arraste para aqui</div>
           </div>
+
+          <!-- BOTÃO RESTAURAR DO SERVIDOR / NUVEM -->
+          <button type="button" class="btn-copy-modal" id="btnRestoreServerBackup" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.3); border-radius:var(--radius-md); cursor:pointer; width:100%; transition:all 0.2s ease; color:#059669;">
+            <div style="display:flex; align-items:center; gap:10px; text-align:left;">
+              <i data-lucide="cloud-download" style="width:20px; height:20px;"></i>
+              <div>
+                <div style="font-weight:700; font-size:0.84rem;">Restaurar do Servidor (Nuvem)</div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">Recupera a lista sincronizada automaticamente no servidor</div>
+              </div>
+            </div>
+            <i data-lucide="refresh-cw" style="width:16px; height:16px;"></i>
+          </button>
         </div>
 
         <!-- OPÇÃO DE BACKUP AUTOMÁTICO -->

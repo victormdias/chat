@@ -77,6 +77,9 @@
       <button type="button" class="m-dropdown-item" id="mOptMyFriends">
         <i data-lucide="users"></i> <span>Ver Lista de Amigos</span>
       </button>
+      <button type="button" class="m-dropdown-item" id="mOptBackup" style="color:var(--primary); font-weight:600;">
+        <i data-lucide="folder-sync"></i> <span>Restaurar / Backup de Amigos</span>
+      </button>
       <div class="m-dropdown-divider"></div>
       <button type="button" class="m-dropdown-item" id="mOptHistory">
         <i data-lucide="history"></i> <span>Histórico de Mensagens</span>
@@ -232,8 +235,8 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <h4 class="m-card-title" style="margin:0;"><i data-lucide="users"></i> Meus Amigos</h4>
               <div style="display:flex; align-items:center; gap:8px;">
-                <button type="button" id="mBackupContactsBtn" title="Backup / Guardar e Recuperar amigos" style="background:rgba(2, 132, 199, 0.1); border:1px solid rgba(2, 132, 199, 0.2); color:var(--primary); font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                  <i data-lucide="folder-sync" style="width:13px; height:13px;"></i> Backup
+                <button type="button" id="mBackupContactsBtn" title="Restaurar ou Guardar amigos em JSON" style="background:rgba(2, 132, 199, 0.12); border:1px solid rgba(2, 132, 199, 0.3); color:var(--primary); font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                  <i data-lucide="folder-sync" style="width:14px; height:14px;"></i> Restaurar / Backup
                 </button>
                 <span id="mContactsCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 amigos</span>
               </div>
@@ -644,15 +647,23 @@
             <i data-lucide="user-check"></i> Só Guardar na Lista de Amigos
           </button>
         </div>
+
+        <div style="display:flex; justify-content:center; margin-top:6px; border-top:1px solid var(--border-color); padding-top:10px;">
+          <button type="button" id="mBtnModalRestoreBackup" style="background:none; border:none; color:var(--primary); font-size:0.82rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; padding:6px 0;">
+            <i data-lucide="folder-sync" style="width:15px; height:15px;"></i> Já tem amigos guardados? Restaurar Backup (.json)
+          </button>
+        </div>
       </div>
     </div>
-  <!-- MODAL: BACKUP DE AMIGOS (.JSON) (MOBILE) -->
+  </div>
+
+  <!-- MODAL: RESTAURAR E GUARDAR AMIGOS (.JSON) (MOBILE) -->
   <div class="m-history-overlay hidden" id="mBackupModal">
     <div class="m-history-box" style="height:auto; max-height:92vh;">
       <div class="m-history-header">
         <div class="m-history-title">
           <i data-lucide="folder-sync" style="color:var(--primary); width:20px; height:20px;"></i>
-          <span>Backup de Amigos (.JSON)</span>
+          <span>Restaurar e Guardar Amigos (.JSON)</span>
         </div>
         <button type="button" class="m-icon-btn" id="mCloseBackupModalBtn" title="Fechar">
           <i data-lucide="x"></i>
@@ -661,20 +672,25 @@
 
       <div style="padding:16px; display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
         <p style="font-size:0.82rem; color:var(--text-muted); margin:0; line-height:1.4;">
-          Guarde os seus amigos num ficheiro <strong>.json</strong> para nunca os perder. Para restaurar, basta carregar o ficheiro guardado:
+          Restaure os seus amigos a partir de um ficheiro <strong>.json</strong> ou faça o download de uma cópia para o seu telemóvel:
         </p>
 
-        <!-- BOTÃO DESCARREGAR FICHEIRO JSON -->
-        <button type="button" class="m-btn m-btn-primary m-btn-full" id="mBtnDownloadJsonBackup" style="padding:12px; font-weight:700; font-size:0.88rem; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(2, 132, 199, 0.25);">
-          <i data-lucide="file-down"></i> Guardar Ficheiro JSON
+        <!-- BOTÃO CARREGAR FICHEIRO JSON (DESTAQUE PRINCIPAL PARA RESTAURAR) -->
+        <button type="button" class="m-btn m-btn-primary m-btn-full" id="mBtnUploadJsonBackup" style="padding:13px; font-weight:700; font-size:0.9rem; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(2, 132, 199, 0.25);">
+          <i data-lucide="folder-up"></i> 📥 Carregar Ficheiro JSON para Restaurar
         </button>
 
-        <!-- INPUT DE FICHEIRO ESCONDIDO MOBILE -->
-        <input type="file" id="mContactsJsonFileInput" accept=".json,application/json" style="display:none;">
+        <!-- INPUT DE FICHEIRO ESCONDIDO MOBILE (MIME E EXTENSÕES FLEXÍVEIS) -->
+        <input type="file" id="mContactsJsonFileInput" accept=".json,application/json,text/plain,*/*" style="display:none;">
 
-        <!-- BOTÃO CARREGAR FICHEIRO JSON -->
-        <button type="button" class="m-btn m-btn-secondary m-btn-full" id="mBtnUploadJsonBackup" style="padding:12px; font-weight:700; font-size:0.88rem; justify-content:center; gap:8px; border:2px dashed rgba(16, 185, 129, 0.4); background:rgba(16, 185, 129, 0.06); color:#059669;">
-          <i data-lucide="file-up"></i> Carregar Ficheiro JSON
+        <!-- BOTÃO RESTAURAR DO SERVIDOR / NUVEM -->
+        <button type="button" class="m-btn m-btn-secondary m-btn-full" id="mBtnRestoreServerBackup" style="padding:11px; font-weight:700; font-size:0.84rem; justify-content:center; gap:8px; border:1px solid rgba(16, 185, 129, 0.4); background:rgba(16, 185, 129, 0.08); color:#059669;">
+          <i data-lucide="cloud-download"></i> ☁️ Restaurar do Servidor (Último Backup)
+        </button>
+
+        <!-- BOTÃO DESCARREGAR FICHEIRO JSON (EXPORTAR CÓPIA) -->
+        <button type="button" class="m-btn m-btn-secondary m-btn-full" id="mBtnDownloadJsonBackup" style="padding:11px; font-weight:600; font-size:0.84rem; justify-content:center; gap:8px;">
+          <i data-lucide="file-down"></i> 💾 Guardar / Descarregar Ficheiro JSON
         </button>
 
         <!-- OPÇÃO BACKUP AUTOMÁTICO -->

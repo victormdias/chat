@@ -131,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDownloadJsonBackup: document.getElementById('btnDownloadJsonBackup'),
     contactsJsonFileInput: document.getElementById('contactsJsonFileInput'),
     backupDropZone: document.getElementById('backupDropZone'),
+    btnRestoreServerBackup: document.getElementById('btnRestoreServerBackup'),
     chkAutoDownloadBackup: document.getElementById('chkAutoDownloadBackup'),
     backupDataTextarea: document.getElementById('backupDataTextarea'),
     btnExportContacts: document.getElementById('btnExportContacts'),
@@ -909,16 +910,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function processJsonFile(file) {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
-      return showToast('Por favor selecione um ficheiro .json válido.');
-    }
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const parsed = JSON.parse(evt.target.result);
         handleRestoreFromJson(parsed, file.name);
       } catch (err) {
-        showToast('Erro: o ficheiro não contém JSON válido.');
+        showToast('Erro: o ficheiro não contém formato JSON válido de amigos.');
       }
     };
     reader.onerror = () => showToast('Erro ao ler o ficheiro.');
@@ -985,6 +983,24 @@ document.addEventListener('DOMContentLoaded', () => {
       if (file) {
         processJsonFile(file);
         elements.contactsJsonFileInput.value = '';
+      }
+    });
+  }
+
+  // Restaurar Backup do Servidor / Nuvem no Computador
+  if (elements.btnRestoreServerBackup) {
+    elements.btnRestoreServerBackup.addEventListener('click', async () => {
+      showToast('A verificar cópia no servidor...');
+      try {
+        const res = await fetch('/api/backup');
+        if (!res.ok) throw new Error('Servidor indisponível');
+        const data = await res.json();
+        if (data.empty || !data || (Array.isArray(data) && data.length === 0) || (data.contacts && data.contacts.length === 0)) {
+          return showToast('Nenhum backup encontrado no servidor ainda.');
+        }
+        handleRestoreFromJson(data, 'Servidor');
+      } catch (err) {
+        showToast('Não foi possível obter backup do servidor.');
       }
     });
   }
