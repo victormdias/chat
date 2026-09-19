@@ -69,7 +69,20 @@ class P2PClient {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            // TURN / STUN Relay Servers para atravessar 4G/5G, CGNAT e Redes Móveis
+            {
+              urls: [
+                'stun:openrelay.metered.ca:80',
+                'turn:openrelay.metered.ca:80',
+                'turn:openrelay.metered.ca:443',
+                'turn:openrelay.metered.ca:443?transport=tcp'
+              ],
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            }
           ]
         }
       });
@@ -623,6 +636,23 @@ class P2PClient {
       this.remoteStream = remoteStream;
       this.onCallAccepted(this.localStream, remoteStream, callHasVideo);
     });
+
+    // Escutar também diretamente na RTCPeerConnection para entrega imediata dos tracks
+    if (call.peerConnection) {
+      call.peerConnection.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          this.remoteStream = event.streams[0];
+          this.onCallAccepted(this.localStream, event.streams[0], callHasVideo);
+        }
+      };
+      call.peerConnection.oniceconnectionstatechange = () => {
+        const state = call.peerConnection.iceConnectionState;
+        console.log('Estado ICE da Chamada:', state);
+        if (state === 'failed' && call.peerConnection.restartIce) {
+          try { call.peerConnection.restartIce(); } catch (e) {}
+        }
+      };
+    }
 
     call.on('close', () => {
       this.endCall(false);

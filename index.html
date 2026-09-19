@@ -84,10 +84,15 @@
       <div class="connections-section">
         <div class="section-header-row">
           <span class="section-label">Suas conexões</span>
-          <span class="online-indicator-pill">
-            <span class="dot-green"></span>
-            <span id="connectionsCountText">1 online</span>
-          </span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" class="btn-backup-mini" id="openBackupModalBtn" title="Backup / Guardar e Restaurar Amigos">
+              <i data-lucide="folder-sync"></i>
+            </button>
+            <span class="online-indicator-pill">
+              <span class="dot-green"></span>
+              <span id="connectionsCountText">0 online</span>
+            </span>
+          </div>
         </div>
 
         <!-- LISTA DE CONEXÕES ATIVAS -->
@@ -160,20 +165,23 @@
             <i data-lucide="chevron-left"></i>
           </button>
           <div class="header-avatar-wrap">
-            <div class="avatar-circle header-avatar" id="chatHeaderAvatar">UT</div>
-            <span class="status-dot online" id="chatHeaderStatusDot"></span>
+            <div class="avatar-circle header-avatar" id="chatHeaderAvatar">--</div>
+            <span class="status-dot offline" id="chatHeaderStatusDot"></span>
           </div>
           <div class="header-user-meta">
-            <h2 id="chatHeaderName">Utilizador-109</h2>
+            <h2 id="chatHeaderName">Nenhum Par Conectado</h2>
             <div class="header-user-sub">
-              <span class="dot-green-tiny"></span>
-              <span id="chatHeaderStatusText">Online • Conexão direta P2P</span>
+              <span class="dot-red-tiny" id="chatHeaderSubDot"></span>
+              <span id="chatHeaderStatusText">Aguardando conexão P2P</span>
             </div>
           </div>
         </div>
 
         <div class="chat-header-actions">
-          <button class="header-btn" id="searchChatBtn" title="Pesquisar">
+          <button class="header-btn" id="headerHistoryBtn" title="Histórico de Mensagens">
+            <i data-lucide="history"></i>
+          </button>
+          <button class="header-btn" id="searchChatBtn" title="Pesquisar mensagens">
             <i data-lucide="search"></i>
           </button>
           <button class="header-btn" id="headerAudioCallBtn" title="Chamada de voz">
@@ -188,8 +196,57 @@
           <button class="header-btn" id="headerMoreOptionsBtn" title="Mais opções">
             <i data-lucide="more-vertical"></i>
           </button>
+
+          <!-- MENU DE OPÇÕES (3 PONTINHOS) -->
+          <div class="header-more-dropdown hidden" id="headerMoreDropdown">
+            <button type="button" class="dropdown-item" id="optOpenHistory">
+              <i data-lucide="history"></i>
+              <span>Histórico de Mensagens</span>
+            </button>
+            <button type="button" class="dropdown-item" id="optExportChat">
+              <i data-lucide="download"></i>
+              <span>Exportar Conversa (.txt)</span>
+            </button>
+            <button type="button" class="dropdown-item" id="optToggleSound">
+              <i data-lucide="volume-2" id="optSoundIcon"></i>
+              <span id="optSoundText">Sons de Notificação: Ligados</span>
+            </button>
+            <button type="button" class="dropdown-item" id="optPartnerInfo">
+              <i data-lucide="info"></i>
+              <span>Informações do Contacto</span>
+            </button>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item" id="optClearChat">
+              <i data-lucide="trash-2"></i>
+              <span>Limpar Conversa</span>
+            </button>
+            <button type="button" class="dropdown-item text-danger" id="optDisconnect">
+              <i data-lucide="log-out"></i>
+              <span>Desconectar Amigo</span>
+            </button>
+          </div>
         </div>
       </header>
+
+      <!-- BARRA DE PESQUISA NA CONVERSA -->
+      <div class="chat-search-bar hidden" id="chatSearchBar">
+        <div class="search-input-box">
+          <i data-lucide="search" class="search-icon-inside"></i>
+          <input type="text" id="chatSearchInput" placeholder="Pesquisar mensagens na conversa..." autocomplete="off" />
+          <span class="search-count-badge" id="chatSearchCount">0/0</span>
+        </div>
+        <div class="search-nav-buttons">
+          <button type="button" class="search-nav-btn" id="chatSearchPrevBtn" title="Mensagem anterior (Shift+Enter)">
+            <i data-lucide="chevron-up"></i>
+          </button>
+          <button type="button" class="search-nav-btn" id="chatSearchNextBtn" title="Próxima mensagem (Enter)">
+            <i data-lucide="chevron-down"></i>
+          </button>
+          <button type="button" class="search-nav-btn close-search-btn" id="chatSearchCloseBtn" title="Fechar pesquisa (Esc)">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      </div>
 
       <!-- CORPO DO CHAT COM A ILUSTRAÇÃO HERO -->
       <div class="chat-body-container" id="chatBodyContainer">
@@ -366,14 +423,14 @@
       <!-- PERFIL DO PAR -->
       <div class="peer-profile-header">
         <div class="peer-profile-avatar-wrap">
-          <div class="avatar-circle large-avatar" id="rightPanelAvatar">UT</div>
-          <span class="status-dot online"></span>
+          <div class="avatar-circle large-avatar" id="rightPanelAvatar">--</div>
+          <span class="status-dot offline" id="rightPanelStatusDot"></span>
         </div>
         <button class="sparkle-btn" title="Privacidade Garantida">
           <i data-lucide="sparkles"></i>
         </button>
-        <h3 class="peer-profile-name" id="rightPanelName">Utilizador-109</h3>
-        <span class="peer-profile-status" id="rightPanelStatus">Online agora</span>
+        <h3 class="peer-profile-name" id="rightPanelName">Nenhum Par Conectado</h3>
+        <span class="peer-profile-status" id="rightPanelStatus">Offline</span>
       </div>
 
       <!-- SECÇÃO: DETALHES DA CONEXÃO -->
@@ -535,12 +592,103 @@
     </div>
   </div>
 
+  <!-- MODAL DE BACKUP / EXPORTAR E IMPORTAR AMIGOS -->
+  <div class="modal-backdrop hidden" id="backupModal">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <h3><i data-lucide="folder-sync"></i> Backup de Amigos</h3>
+        <button class="icon-btn-close" id="closeBackupModalBtn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-card-body">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">
+          Guarde a lista dos seus amigos para nunca a perder, mesmo ao limpar o navegador ou aceder de outro computador/telemóvel:
+        </p>
+
+        <div class="modal-field">
+          <label>Código de Backup dos Amigos:</label>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <textarea id="backupDataTextarea" rows="4" style="width:100%; font-family:monospace; font-size:0.8rem; padding:8px; border-radius:var(--radius-md); border:1px solid var(--border-light); resize:none;" placeholder="Clique em 'Copiar Backup' para guardar ou cole aqui para restaurar..."></textarea>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:12px;">
+          <button type="button" class="btn-copy-modal" id="btnExportContacts" style="flex:1; justify-content:center; padding:10px;">
+            <i data-lucide="copy"></i> Copiar Backup
+          </button>
+          <button type="button" class="btn-copy-modal" id="btnImportContacts" style="flex:1; justify-content:center; padding:10px; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:white;">
+            <i data-lucide="download"></i> Restaurar Amigos
+          </button>
+        </div>
+      </div>
+    </div>
+  <!-- MODAL ARRASTÁVEL DE HISTÓRICO DE CONVERSAS -->
+  <div class="history-modal-overlay hidden" id="historyOverlay">
+    <div class="history-modal-box" id="historyModalBox">
+      <!-- CABEÇALHO ARRASTÁVEL -->
+      <div class="history-modal-header" id="historyModalHeader" title="Clique e arraste para mover a janela">
+        <div class="history-header-title">
+          <i data-lucide="grip-horizontal" class="history-drag-icon"></i>
+          <i data-lucide="history" style="color:var(--primary); width:18px; height:18px;"></i>
+          <span>Histórico de Mensagens</span>
+        </div>
+        <div class="history-header-actions">
+          <span class="history-count-badge" id="historyTotalBadge">0 mensagens</span>
+          <button type="button" class="history-btn-close" id="closeHistoryModalBtn" title="Fechar Histórico (Esc)">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- BARRA DE FERRAMENTAS DO HISTÓRICO -->
+      <div class="history-toolbar">
+        <div class="history-contact-select-wrap">
+          <label for="historyPartnerSelect"><i data-lucide="users" style="width:14px; height:14px;"></i> Conversa:</label>
+          <select id="historyPartnerSelect" class="history-select">
+            <!-- Opções geradas dinamicamente -->
+          </select>
+        </div>
+
+        <div class="history-search-wrap">
+          <i data-lucide="search"></i>
+          <input type="text" id="historySearchInput" placeholder="Pesquisar por texto ou data (ex: 19/09)...">
+        </div>
+      </div>
+
+      <!-- CORPO DA LISTA DE MENSAGENS -->
+      <div class="history-body" id="historyModalList">
+        <!-- Itens de mensagem com data completa e hora renderizados aqui -->
+      </div>
+
+      <!-- RODAPÉ DE AÇÕES -->
+      <div class="history-footer">
+        <div class="history-footer-left">
+          <button type="button" class="btn-history-action" id="btnExportHistoryTxt" title="Descarregar histórico deste contacto em .txt">
+            <i data-lucide="download"></i> Exportar (.txt)
+          </button>
+          <button type="button" class="btn-history-action danger" id="btnClearHistoryContact" title="Apagar histórico deste contacto">
+            <i data-lucide="trash-2"></i> Limpar
+          </button>
+        </div>
+        <div class="history-footer-right">
+          <button type="button" class="btn-history-action primary" id="btnLoadHistoryIntoChat" title="Carregar mensagens deste histórico para o ecrã do chat">
+            <i data-lucide="arrow-up-right"></i> Ver no Chat Principal
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE CHAMADA DE VÍDEO / VOZ -->
   <div class="call-modal-fullscreen hidden" id="callOverlay">
-    <div class="call-modal-box">
-      <div class="call-modal-header">
-        <span id="callModalTitle">Chamada P2P em Curso</span>
-        <span class="call-duration-tag" id="callDurationDisplay">00:00</span>
+    <div class="call-modal-box" id="callModalBox">
+      <div class="call-modal-header" id="callModalHeader" title="Clique e arraste para mover a janela">
+        <div class="call-modal-header-left">
+          <i data-lucide="grip-horizontal" class="call-drag-icon"></i>
+          <span id="callModalTitle">Chamada P2P em Curso</span>
+        </div>
+        <div class="call-modal-header-right">
+          <span class="call-duration-tag" id="callDurationDisplay">00:00</span>
+        </div>
       </div>
       <div class="call-video-stage" id="callVideoStage">
         <video id="remoteVideoFeed" autoplay playsinline></video>

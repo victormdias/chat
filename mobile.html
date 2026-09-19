@@ -33,6 +33,15 @@
         </div>
       </div>
       <div class="top-bar-right">
+        <button class="m-icon-btn" id="mHistoryBtn" title="Histórico de Mensagens">
+          <i data-lucide="history"></i>
+        </button>
+        <button class="m-icon-btn" id="mSearchBtn" title="Pesquisar mensagens">
+          <i data-lucide="search"></i>
+        </button>
+        <button class="m-icon-btn" id="mMoreBtn" title="Mais opções">
+          <i data-lucide="more-vertical"></i>
+        </button>
         <span class="m-latency-tag hidden" id="mLatencyTag">
           <i data-lucide="activity"></i> <span id="mLatencyVal">--ms</span>
         </span>
@@ -44,6 +53,62 @@
         </a>
       </div>
     </header>
+
+    <!-- BARRA DE PESQUISA MOBILE -->
+    <div class="m-search-bar hidden" id="mSearchBar">
+      <div class="m-search-box">
+        <i data-lucide="search"></i>
+        <input type="text" id="mSearchInput" placeholder="Pesquisar..." autocomplete="off">
+        <span class="m-search-count" id="mSearchCount">0/0</span>
+      </div>
+      <button type="button" class="m-search-nav-btn" id="mSearchPrevBtn"><i data-lucide="chevron-up"></i></button>
+      <button type="button" class="m-search-nav-btn" id="mSearchNextBtn"><i data-lucide="chevron-down"></i></button>
+      <button type="button" class="m-search-nav-btn close" id="mSearchCloseBtn"><i data-lucide="x"></i></button>
+    </div>
+
+    <!-- DROPDOWN MAIS OPÇÕES MOBILE -->
+    <div class="m-more-dropdown hidden" id="mMoreDropdown">
+      <button type="button" class="m-dropdown-item" id="mOptHistory">
+        <i data-lucide="history"></i> <span>Histórico de Mensagens</span>
+      </button>
+      <button type="button" class="m-dropdown-item" id="mOptExportChat">
+        <i data-lucide="download"></i> <span>Exportar Conversa (.txt)</span>
+      </button>
+      <button type="button" class="m-dropdown-item" id="mOptToggleSound">
+        <i data-lucide="volume-2" id="mOptSoundIcon"></i> <span id="mOptSoundText">Sons: Ligados</span>
+      </button>
+      <div class="m-dropdown-divider"></div>
+      <button type="button" class="m-dropdown-item" id="mOptClearChat">
+        <i data-lucide="trash-2"></i> <span>Limpar Mensagens</span>
+      </button>
+      <button type="button" class="m-dropdown-item text-danger" id="mOptDisconnect">
+        <i data-lucide="log-out"></i> <span>Desconectar Amigo</span>
+      </button>
+    </div>
+
+    <!-- MODAL ARRASTÁVEL / FLUTUANTE DE HISTÓRICO MOBILE -->
+    <div class="m-history-overlay hidden" id="mHistoryOverlay">
+      <div class="m-history-box" id="mHistoryBox">
+        <div class="m-history-header" id="mHistoryHeader">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <i data-lucide="grip-horizontal" style="color:var(--text-dim); width:16px; height:16px;"></i>
+            <i data-lucide="history" style="color:var(--primary); width:18px; height:18px;"></i>
+            <strong>Histórico de Mensagens</strong>
+          </div>
+          <button type="button" class="m-btn-close-hist" id="mCloseHistoryBtn"><i data-lucide="x"></i></button>
+        </div>
+        <div class="m-history-toolbar">
+          <select id="mHistoryPartnerSelect" class="m-history-select"></select>
+          <input type="text" id="mHistorySearchInput" placeholder="Pesquisar por texto ou data (ex: 19/09)...">
+        </div>
+        <div class="m-history-body" id="mHistoryList"></div>
+        <div class="m-history-footer">
+          <button type="button" class="m-btn m-btn-sm" id="mBtnExportHistory"><i data-lucide="download"></i> Exportar</button>
+          <button type="button" class="m-btn m-btn-sm m-btn-danger" id="mBtnClearHistory"><i data-lucide="trash-2"></i> Limpar</button>
+          <button type="button" class="m-btn m-btn-sm m-btn-primary" id="mBtnLoadHistory"><i data-lucide="arrow-up-right"></i> Carregar</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ÁREA DE CONTEÚDO COM AS 4 ABAS -->
     <div class="mobile-views">
@@ -212,7 +277,12 @@
           <div class="m-card" id="mContactsCard">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <h4 class="m-card-title"><i data-lucide="users"></i> Meus Amigos</h4>
-              <span id="mContactsCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 contactos</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" id="mBackupContactsBtn" title="Backup / Guardar e Recuperar amigos" style="background:rgba(2, 132, 199, 0.1); border:1px solid rgba(2, 132, 199, 0.2); color:var(--primary); font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                  <i data-lucide="folder-sync" style="width:13px; height:13px;"></i> Backup
+                </button>
+                <span id="mContactsCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 contactos</span>
+              </div>
             </div>
             <div id="mContactsList" style="display:flex; flex-direction:column; gap:8px;">
               <!-- Contactos gerados dinamicamente -->
@@ -469,6 +539,47 @@
       <button class="m-btn m-btn-primary m-btn-full" id="mUnderstoodPermBtn" style="margin-top:10px;">
         Compreendi
       </button>
+    </div>
+  </div>
+
+  <!-- MODAL DE HISTÓRICO DE MENSAGENS (MOBILE) -->
+  <div class="m-history-overlay hidden" id="mHistoryOverlay">
+    <div class="m-history-box" id="mHistoryBox">
+      <div class="m-history-header" id="mHistoryHeader">
+        <div class="m-history-title">
+          <i data-lucide="grip-horizontal" class="m-drag-handle-icon"></i>
+          <i data-lucide="history" style="color:var(--primary); width:18px; height:18px;"></i>
+          <span>Histórico</span>
+        </div>
+        <button type="button" class="m-icon-btn" id="mCloseHistoryBtn" title="Fechar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="m-history-toolbar">
+        <div class="m-history-select-wrap">
+          <i data-lucide="users" style="width:14px; height:14px;"></i>
+          <select id="mHistoryPartnerSelect" class="m-history-select"></select>
+        </div>
+        <div class="m-history-search-box">
+          <i data-lucide="search" style="width:14px; height:14px;"></i>
+          <input type="text" id="mHistorySearchInput" placeholder="Pesquisar histórico ou data...">
+        </div>
+      </div>
+
+      <div class="m-history-body" id="mHistoryList"></div>
+
+      <div class="m-history-footer">
+        <button type="button" class="m-btn m-btn-secondary" id="mBtnExportHistory" style="padding:6px 10px; font-size:0.75rem;">
+          <i data-lucide="download"></i> .TXT
+        </button>
+        <button type="button" class="m-btn m-btn-secondary" id="mBtnClearHistory" style="padding:6px 10px; font-size:0.75rem; color:var(--red-danger);">
+          <i data-lucide="trash-2"></i> Limpar
+        </button>
+        <button type="button" class="m-btn m-btn-primary" id="mBtnLoadHistory" style="padding:6px 12px; font-size:0.75rem; margin-left:auto;">
+          <i data-lucide="arrow-up-right"></i> Ver no Chat
+        </button>
+      </div>
     </div>
   </div>
 

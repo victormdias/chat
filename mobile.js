@@ -31,6 +31,37 @@ document.addEventListener('DOMContentLoaded', () => {
     mThemeIcon: document.getElementById('mThemeIcon'),
     mFloatLeaveBtn: document.getElementById('mFloatLeaveBtn'),
 
+    // Top Bar Search & More Options
+    mHistoryBtn: document.getElementById('mHistoryBtn'),
+    mSearchBtn: document.getElementById('mSearchBtn'),
+    mMoreBtn: document.getElementById('mMoreBtn'),
+    mSearchBar: document.getElementById('mSearchBar'),
+    mSearchInput: document.getElementById('mSearchInput'),
+    mSearchCount: document.getElementById('mSearchCount'),
+    mSearchPrevBtn: document.getElementById('mSearchPrevBtn'),
+    mSearchNextBtn: document.getElementById('mSearchNextBtn'),
+    mSearchCloseBtn: document.getElementById('mSearchCloseBtn'),
+    mMoreDropdown: document.getElementById('mMoreDropdown'),
+    mOptHistory: document.getElementById('mOptHistory'),
+    mOptExportChat: document.getElementById('mOptExportChat'),
+    mOptToggleSound: document.getElementById('mOptToggleSound'),
+    mOptSoundIcon: document.getElementById('mOptSoundIcon'),
+    mOptSoundText: document.getElementById('mOptSoundText'),
+    mOptClearChat: document.getElementById('mOptClearChat'),
+    mOptDisconnect: document.getElementById('mOptDisconnect'),
+
+    // Mobile History Modal
+    mHistoryOverlay: document.getElementById('mHistoryOverlay'),
+    mHistoryBox: document.getElementById('mHistoryBox'),
+    mHistoryHeader: document.getElementById('mHistoryHeader'),
+    mCloseHistoryBtn: document.getElementById('mCloseHistoryBtn'),
+    mHistoryPartnerSelect: document.getElementById('mHistoryPartnerSelect'),
+    mHistorySearchInput: document.getElementById('mHistorySearchInput'),
+    mHistoryList: document.getElementById('mHistoryList'),
+    mBtnExportHistory: document.getElementById('mBtnExportHistory'),
+    mBtnClearHistory: document.getElementById('mBtnClearHistory'),
+    mBtnLoadHistory: document.getElementById('mBtnLoadHistory'),
+
     // Views
     viewChat: document.getElementById('view-chat'),
     viewConnect: document.getElementById('view-connect'),
@@ -78,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mContactsCard: document.getElementById('mContactsCard'),
     mContactsCountBadge: document.getElementById('mContactsCountBadge'),
     mContactsList: document.getElementById('mContactsList'),
+    mBackupContactsBtn: document.getElementById('mBackupContactsBtn'),
 
     // Call View
     mCallPartnerName: document.getElementById('mCallPartnerName'),
@@ -204,6 +236,101 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
+  // SISTEMA DE HISTÓRICO PERMANENTE DE CONVERSAS (LOCALSTORAGE - MOBILE)
+  // =========================================================================
+  const ChatHistory = {
+    STORAGE_KEY: 'nexus_chat_history_v1',
+
+    getAll() {
+      try {
+        const raw = localStorage.getItem(this.STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    },
+
+    save(peerId, msg) {
+      if (!peerId) peerId = client.remotePeerId || 'geral';
+      try {
+        const all = this.getAll();
+        if (!all[peerId]) all[peerId] = [];
+
+        const now = new Date(msg.time || Date.now());
+        const record = {
+          id: msg.id || 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          sender: msg.sender || 'me',
+          senderName: msg.senderName || (msg.sender === 'me' ? (savedNick || 'Eu') : 'Amigo'),
+          text: msg.text || '',
+          timestamp: now.getTime(),
+          dateFormatted: now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          timeFormatted: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          fullDateTime: `${now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' })} às ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          isFile: !!msg.name || !!msg.isFile,
+          fileName: msg.name || null,
+          fileSize: msg.size || null,
+          isImage: !!msg.isImage,
+          isVoice: !!msg.isVoice || !!msg.audioData,
+          duration: msg.duration || null
+        };
+
+        all[peerId].push(record);
+        if (all[peerId].length > 600) {
+          all[peerId] = all[peerId].slice(-600);
+        }
+
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
+        return record;
+      } catch (e) {
+        console.warn('Erro ao guardar histórico mobile:', e);
+      }
+    },
+
+    getMessages(peerId) {
+      if (!peerId) peerId = client.remotePeerId || 'geral';
+      const all = this.getAll();
+      return all[peerId] || [];
+    },
+
+    getAllPeers() {
+      const all = this.getAll();
+      return Object.keys(all).filter(k => all[k] && all[k].length > 0);
+    },
+
+    clear(peerId) {
+      const all = this.getAll();
+      delete all[peerId];
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
+    }
+  };
+
+  function formatDateOnly(timestamp) {
+    const d = new Date(timestamp || Date.now());
+    return d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatDateTime(timestamp) {
+    const d = new Date(timestamp || Date.now());
+    const dateStr = d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${dateStr} às ${timeStr}`;
+  }
+
+  let lastRenderedMobileDate = null;
+  function checkAndAppendDateDivider(container, timestamp) {
+    if (!container) return;
+    const dateStr = formatDateOnly(timestamp);
+    if (dateStr !== lastRenderedMobileDate) {
+      lastRenderedMobileDate = dateStr;
+      const divider = document.createElement('div');
+      divider.className = 'chat-date-divider';
+      divider.innerHTML = `<span class="chat-date-badge"><i data-lucide="calendar" style="width:11px; height:11px;"></i> ${escapeHtml(dateStr)}</span>`;
+      container.appendChild(divider);
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
+  // =========================================================================
   // GESTÃO DE CONTACTOS / AMIGOS (LISTA PERSISTENTE & ESTADO ONLINE/OFFLINE)
   // =========================================================================
   function cleanPeerId(input) {
@@ -220,7 +347,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getStoredContacts() {
     try {
-      const raw = localStorage.getItem('nexus_contacts');
+      let raw = localStorage.getItem('nexus_contacts');
+      if (!raw || raw === '[]' || raw === 'null') {
+        const backup = localStorage.getItem('nexus_contacts_backup') || sessionStorage.getItem('nexus_contacts_backup');
+        if (backup && backup !== '[]' && backup !== 'null') {
+          localStorage.setItem('nexus_contacts', backup);
+          raw = backup;
+        }
+      }
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
@@ -255,13 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       list.unshift(item);
     }
-    localStorage.setItem('nexus_contacts', JSON.stringify(list));
+    const json = JSON.stringify(list);
+    localStorage.setItem('nexus_contacts', json);
+    localStorage.setItem('nexus_contacts_backup', json);
+    try { sessionStorage.setItem('nexus_contacts_backup', json); } catch (e) {}
   }
 
   function removeStoredContact(peerId) {
     const cleanId = cleanPeerId(peerId);
     const list = getStoredContacts().filter(c => c.id !== cleanId);
-    localStorage.setItem('nexus_contacts', JSON.stringify(list));
+    const json = JSON.stringify(list);
+    localStorage.setItem('nexus_contacts', json);
+    localStorage.setItem('nexus_contacts_backup', json);
   }
 
   function renderMobileContacts() {
@@ -360,6 +499,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (window.lucide) window.lucide.createIcons();
   }
+
+  // Backup / Exportar e Importar Amigos (Mobile)
+  if (elements.mBackupContactsBtn) {
+    elements.mBackupContactsBtn.addEventListener('click', () => {
+      const contacts = getStoredContacts();
+      const choice = prompt('Backup de Amigos:\n1. Digite "E" para EXPORTAR (copiar código dos seus amigos)\n2. Digite "I" para IMPORTAR (restaurar amigos por código)', 'E');
+      if (!choice) return;
+      if (choice.toUpperCase() === 'E') {
+        if (contacts.length === 0) return showToast('Ainda não tem amigos na lista para exportar.');
+        const json = JSON.stringify(contacts);
+        navigator.clipboard.writeText(json);
+        showToast('Código de backup copiado! Guarde nas suas notas.');
+      } else if (choice.toUpperCase() === 'I') {
+        const input = prompt('Cole aqui o código de backup dos amigos:');
+        if (!input) return;
+        try {
+          const list = JSON.parse(input.trim());
+          if (Array.isArray(list) && list.length > 0) {
+            const current = getStoredContacts();
+            let count = 0;
+            list.forEach(item => {
+              if (item.id && !current.some(c => c.id === item.id)) {
+                current.push(item);
+                count++;
+              }
+            });
+            const fullJson = JSON.stringify(current);
+            localStorage.setItem('nexus_contacts', fullJson);
+            localStorage.setItem('nexus_contacts_backup', fullJson);
+            renderMobileContacts();
+            showToast(`${list.length} amigo(s) restaurado(s) com sucesso!`);
+          } else {
+            showToast('Nenhum amigo encontrado no código.');
+          }
+        } catch (e) {
+          showToast('Código de backup inválido.');
+        }
+      }
+    });
+  }
+
   let recordingTimerInterval = null;
   let pendingIncomingCall = null;
   let callTimerInterval = null;
@@ -426,6 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // SONS WEB AUDIO API
   // =========================================================================
   let audioCtx = null;
+  let soundMobileEnabled = true;
   function getAudioContext() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -434,6 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const Sound = {
     send() {
+      if (!soundMobileEnabled) return;
       try {
         const ctx = getAudioContext();
         const osc = ctx.createOscillator();
@@ -449,6 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     },
     receive() {
+      if (!soundMobileEnabled) return;
       try {
         const ctx = getAudioContext();
         const osc = ctx.createOscillator();
@@ -869,10 +1052,567 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Desconectado.');
   });
 
-  if (elements.mFloatLeaveBtn) {
+    if (elements.mFloatLeaveBtn) {
     elements.mFloatLeaveBtn.addEventListener('click', () => {
       client.disconnect();
       showToast('Saiu da conversa.');
+    });
+  }
+
+  // =========================================================================
+  // SISTEMA DE PESQUISA MOBILE (LUPA)
+  // =========================================================================
+  let mSearchMatches = [];
+  let mCurrentSearchIdx = -1;
+
+  function clearMobileSearch() {
+    if (!elements.mMessagesContainer) return;
+    const marks = elements.mMessagesContainer.querySelectorAll('mark.chat-search-match');
+    marks.forEach(mark => {
+      const parent = mark.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(mark.textContent), mark);
+        parent.normalize();
+      }
+    });
+    mSearchMatches = [];
+    mCurrentSearchIdx = -1;
+    if (elements.mSearchCount) elements.mSearchCount.textContent = '0/0';
+  }
+
+  function performMobileSearch(query) {
+    clearMobileSearch();
+    const q = (query || '').trim().toLowerCase();
+    if (!q || !elements.mMessagesContainer) return;
+
+    const bubbles = elements.mMessagesContainer.querySelectorAll('.m-msg-bubble');
+    bubbles.forEach(bubble => {
+      const textNodes = [];
+      const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (node.parentNode && (node.parentNode.closest('.m-msg-time') || node.parentNode.closest('.m-file-card'))) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      let n;
+      while ((n = walker.nextNode())) {
+        if (n.nodeValue && n.nodeValue.toLowerCase().includes(q)) {
+          textNodes.push(n);
+        }
+      }
+
+      textNodes.forEach(node => {
+        const val = node.nodeValue;
+        const lowerVal = val.toLowerCase();
+        let pos = 0;
+        const fragment = document.createDocumentFragment();
+
+        while (pos < val.length) {
+          const idx = lowerVal.indexOf(q, pos);
+          if (idx === -1) {
+            fragment.appendChild(document.createTextNode(val.substring(pos)));
+            break;
+          }
+          if (idx > pos) {
+            fragment.appendChild(document.createTextNode(val.substring(pos, idx)));
+          }
+          const mark = document.createElement('mark');
+          mark.className = 'chat-search-match';
+          mark.textContent = val.substring(idx, idx + q.length);
+          fragment.appendChild(mark);
+          mSearchMatches.push(mark);
+          pos = idx + q.length;
+        }
+        if (node.parentNode) {
+          node.parentNode.replaceChild(fragment, node);
+        }
+      });
+    });
+
+    if (mSearchMatches.length > 0) {
+      mCurrentSearchIdx = 0;
+      updateMobileActiveSearch();
+    }
+  }
+
+  function updateMobileActiveSearch() {
+    mSearchMatches.forEach((m, idx) => {
+      if (idx === mCurrentSearchIdx) {
+        m.classList.add('chat-search-active');
+        m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        m.classList.remove('chat-search-active');
+      }
+    });
+    if (elements.mSearchCount) {
+      elements.mSearchCount.textContent = `${mCurrentSearchIdx + 1}/${mSearchMatches.length}`;
+    }
+  }
+
+  function nextMobileSearch() {
+    if (mSearchMatches.length === 0) return;
+    mCurrentSearchIdx = (mCurrentSearchIdx + 1) % mSearchMatches.length;
+    updateMobileActiveSearch();
+  }
+
+  function prevMobileSearch() {
+    if (mSearchMatches.length === 0) return;
+    mCurrentSearchIdx = (mCurrentSearchIdx - 1 + mSearchMatches.length) % mSearchMatches.length;
+    updateMobileActiveSearch();
+  }
+
+  if (elements.mSearchBtn) {
+    elements.mSearchBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.mMoreDropdown?.classList.add('hidden');
+      const isHidden = elements.mSearchBar.classList.toggle('hidden');
+      if (!isHidden) {
+        elements.mSearchInput.focus();
+        if (elements.mSearchInput.value) performMobileSearch(elements.mSearchInput.value);
+      } else {
+        clearMobileSearch();
+      }
+    });
+  }
+
+  if (elements.mSearchCloseBtn) {
+    elements.mSearchCloseBtn.addEventListener('click', () => {
+      elements.mSearchBar?.classList.add('hidden');
+      clearMobileSearch();
+    });
+  }
+
+  if (elements.mSearchInput) {
+    elements.mSearchInput.addEventListener('input', (e) => {
+      performMobileSearch(e.target.value);
+    });
+    elements.mSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) prevMobileSearch();
+        else nextMobileSearch();
+      }
+    });
+  }
+
+  if (elements.mSearchNextBtn) elements.mSearchNextBtn.addEventListener('click', nextMobileSearch);
+  if (elements.mSearchPrevBtn) elements.mSearchPrevBtn.addEventListener('click', prevMobileSearch);
+
+  // =========================================================================
+  // SISTEMA DE MAIS OPÇÕES MOBILE (3 PONTINHOS)
+  // =========================================================================
+  if (elements.mMoreBtn && elements.mMoreDropdown) {
+    elements.mMoreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.mSearchBar?.classList.add('hidden');
+      elements.mMoreDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (elements.mMoreDropdown && !elements.mMoreDropdown.contains(e.target) && e.target !== elements.mMoreBtn) {
+        elements.mMoreDropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  if (elements.mOptExportChat) {
+    elements.mOptExportChat.addEventListener('click', () => {
+      elements.mMoreDropdown?.classList.add('hidden');
+      const rows = elements.mMessagesContainer.querySelectorAll('.m-msg-row');
+      if (rows.length === 0) return showToast('Sem mensagens para exportar.');
+
+      const partnerName = client.remoteNickname || 'Amigo';
+      const partnerId = client.remotePeerId || '--';
+      let exportContent = `=== NEXUS P2P MOBILE - HISTÓRICO DE CONVERSA ===\n`;
+      exportContent += `Data: ${new Date().toLocaleString()}\n`;
+      exportContent += `Amigo: ${partnerName} (${partnerId})\n\n`;
+
+      rows.forEach(r => {
+        const isMe = r.classList.contains('me');
+        const sender = isMe ? (savedMobileNick || 'Eu') : partnerName;
+        const time = r.querySelector('.m-msg-time')?.textContent || '';
+        const text = r.querySelector('.m-msg-bubble')?.innerText || '';
+        exportContent += `[${time}] ${sender}: ${text}\n`;
+      });
+
+      const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `conversa-${partnerName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Conversa exportada!');
+    });
+  }
+
+  if (elements.mOptToggleSound) {
+    elements.mOptToggleSound.addEventListener('click', () => {
+      soundMobileEnabled = !soundMobileEnabled;
+      if (elements.mOptSoundIcon) {
+        elements.mOptSoundIcon.setAttribute('data-lucide', soundMobileEnabled ? 'volume-2' : 'volume-x');
+      }
+      if (elements.mOptSoundText) {
+        elements.mOptSoundText.textContent = soundMobileEnabled ? 'Sons: Ligados' : 'Sons: Silenciados';
+      }
+      if (window.lucide) window.lucide.createIcons();
+      showToast(soundMobileEnabled ? 'Sons ligados' : 'Sons silenciados');
+      elements.mMoreDropdown?.classList.add('hidden');
+    });
+  }
+
+  if (elements.mOptClearChat) {
+    elements.mOptClearChat.addEventListener('click', () => {
+      elements.mMoreDropdown?.classList.add('hidden');
+      if (confirm('Deseja limpar as mensagens do ecrã?')) {
+        elements.mMessagesContainer.innerHTML = '';
+        elements.mEmptyState?.classList.remove('hidden');
+        clearMobileSearch();
+        showToast('Conversa limpa.');
+      }
+    });
+  }
+
+  if (elements.mOptDisconnect) {
+    elements.mMoreDropdown?.classList.add('hidden');
+    if (confirm('Deseja desconectar deste amigo?')) {
+      client.disconnect();
+      showToast('Desconectado.');
+    }
+  }
+
+  // =========================================================================
+  // CONTROLADOR DA MODAL ARRASTÁVEL DE HISTÓRICO DE MENSAGENS (MOBILE)
+  // =========================================================================
+  function makeMobileElementDraggable(box, handle) {
+    if (!box || !handle) return;
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+
+    const onPointerDown = (e) => {
+      if (e.target.closest('button') || e.target.closest('a') || e.target.closest('select') || e.target.closest('input')) {
+        return;
+      }
+      isDragging = true;
+      handle.style.cursor = 'grabbing';
+
+      const isTouch = e.type.startsWith('touch');
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+      startX = clientX;
+      startY = clientY;
+
+      const rect = box.getBoundingClientRect();
+      box.style.position = 'fixed';
+      box.style.transform = 'none';
+      box.style.left = `${rect.left}px`;
+      box.style.top = `${rect.top}px`;
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      document.addEventListener('mousemove', onPointerMove, { passive: false });
+      document.addEventListener('mouseup', onPointerUp);
+      document.addEventListener('touchmove', onPointerMove, { passive: false });
+      document.addEventListener('touchend', onPointerUp);
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onPointerMove = (e) => {
+      if (!isDragging) return;
+      const isTouch = e.type.startsWith('touch');
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+
+      let newLeft = initialLeft + deltaX;
+      let newTop = initialTop + deltaY;
+
+      const rect = box.getBoundingClientRect();
+      const maxLeft = window.innerWidth - rect.width - 5;
+      const maxTop = window.innerHeight - rect.height - 5;
+
+      newLeft = Math.max(5, Math.min(maxLeft, newLeft));
+      newTop = Math.max(5, Math.min(maxTop, newTop));
+
+      box.style.left = `${newLeft}px`;
+      box.style.top = `${newTop}px`;
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onPointerUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      handle.style.cursor = 'grab';
+      document.removeEventListener('mousemove', onPointerMove);
+      document.removeEventListener('mouseup', onPointerUp);
+      document.removeEventListener('touchmove', onPointerMove);
+      document.removeEventListener('touchend', onPointerUp);
+    };
+
+    handle.addEventListener('mousedown', onPointerDown);
+    handle.addEventListener('touchstart', onPointerDown, { passive: false });
+  }
+
+  makeMobileElementDraggable(elements.mHistoryBox, elements.mHistoryHeader);
+
+  function resetMobileHistoryModalPosition() {
+    if (elements.mHistoryBox) {
+      elements.mHistoryBox.style.transform = 'none';
+      elements.mHistoryBox.style.left = '';
+      elements.mHistoryBox.style.top = '';
+      elements.mHistoryBox.style.position = 'relative';
+    }
+  }
+
+  function openMobileHistoryModal(targetPeerId) {
+    elements.mMoreDropdown?.classList.add('hidden');
+    elements.mSearchBar?.classList.add('hidden');
+    clearMobileSearch();
+
+    populateMobileHistoryContactSelect(targetPeerId);
+    resetMobileHistoryModalPosition();
+    elements.mHistoryOverlay?.classList.remove('hidden');
+    renderMobileHistoryList(elements.mHistoryPartnerSelect?.value, elements.mHistorySearchInput?.value || '');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeMobileHistoryModal() {
+    elements.mHistoryOverlay?.classList.add('hidden');
+  }
+
+  if (elements.mHistoryBtn) {
+    elements.mHistoryBtn.addEventListener('click', () => openMobileHistoryModal(client.remotePeerId));
+  }
+
+  if (elements.mOptHistory) {
+    elements.mOptHistory.addEventListener('click', () => openMobileHistoryModal(client.remotePeerId));
+  }
+
+  if (elements.mCloseHistoryBtn) {
+    elements.mCloseHistoryBtn.addEventListener('click', closeMobileHistoryModal);
+  }
+
+  function populateMobileHistoryContactSelect(selectedId) {
+    if (!elements.mHistoryPartnerSelect) return;
+    elements.mHistoryPartnerSelect.innerHTML = '';
+
+    const peersWithHistory = ChatHistory.getAllPeers();
+    const storedContacts = getStoredContacts();
+
+    if (client.remotePeerId && !peersWithHistory.includes(client.remotePeerId)) {
+      peersWithHistory.unshift(client.remotePeerId);
+    }
+
+    if (peersWithHistory.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = 'geral';
+      opt.textContent = 'Sem conversas guardadas ainda';
+      elements.mHistoryPartnerSelect.appendChild(opt);
+      return;
+    }
+
+    peersWithHistory.forEach(pid => {
+      const opt = document.createElement('option');
+      opt.value = pid;
+      const contact = Array.isArray(storedContacts) ? storedContacts.find(c => c.id === pid) : storedContacts[pid];
+      const name = (client.remotePeerId === pid && client.remoteNickname)
+        ? client.remoteNickname
+        : (contact?.name || pid);
+      opt.textContent = `${name} (${pid})`;
+      if (selectedId && selectedId === pid) {
+        opt.selected = true;
+      }
+      elements.mHistoryPartnerSelect.appendChild(opt);
+    });
+
+    if (!elements.mHistoryPartnerSelect.value && elements.mHistoryPartnerSelect.options.length > 0) {
+      elements.mHistoryPartnerSelect.selectedIndex = 0;
+    }
+  }
+
+  function renderMobileHistoryList(peerId, filterQuery = '') {
+    if (!elements.mHistoryList) return;
+    elements.mHistoryList.innerHTML = '';
+
+    if (!peerId) {
+      peerId = elements.mHistoryPartnerSelect?.value || client.remotePeerId || 'geral';
+    }
+
+    const messages = ChatHistory.getMessages(peerId);
+    const q = (filterQuery || '').trim().toLowerCase();
+
+    const filtered = messages.filter(m => {
+      if (!q) return true;
+      const textMatch = m.text && m.text.toLowerCase().includes(q);
+      const dateMatch = (m.dateFormatted && m.dateFormatted.includes(q)) || (m.fullDateTime && m.fullDateTime.toLowerCase().includes(q));
+      const senderMatch = m.senderName && m.senderName.toLowerCase().includes(q);
+      const fileMatch = m.fileName && m.fileName.toLowerCase().includes(q);
+      return textMatch || dateMatch || senderMatch || fileMatch;
+    });
+
+    if (filtered.length === 0) {
+      elements.mHistoryList.innerHTML = `
+        <div style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:0.8rem;">
+          <i data-lucide="inbox" style="width:32px; height:32px; opacity:0.4; margin-bottom:6px;"></i>
+          <p>Nenhuma mensagem encontrada neste histórico.</p>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    let lastGroupDate = null;
+    filtered.forEach(msg => {
+      if (msg.dateFormatted && msg.dateFormatted !== lastGroupDate) {
+        lastGroupDate = msg.dateFormatted;
+        const div = document.createElement('div');
+        div.className = 'chat-date-divider';
+        div.innerHTML = `<span class="chat-date-badge"><i data-lucide="calendar" style="width:11px; height:11px;"></i> ${escapeHtml(msg.dateFormatted)}</span>`;
+        elements.mHistoryList.appendChild(div);
+      }
+
+      const item = document.createElement('div');
+      item.className = `m-history-item ${msg.sender === 'me' ? 'me' : 'peer'}`;
+
+      let contentHtml = escapeHtml(msg.text);
+      if (msg.isFile) {
+        contentHtml = `📎 <strong>${escapeHtml(msg.fileName || 'Ficheiro')}</strong> ${msg.fileSize ? `(${formatBytes(msg.fileSize)})` : ''}`;
+      } else if (msg.isVoice) {
+        contentHtml = `🎙️ <em>Nota de voz</em> ${msg.duration ? `(${msg.duration}s)` : ''}`;
+      }
+
+      item.innerHTML = `
+        <div class="m-history-item-top">
+          <span class="m-history-item-sender">${escapeHtml(msg.senderName || (msg.sender === 'me' ? (savedNick || 'Eu') : 'Amigo'))}</span>
+          <span class="m-history-item-datetime">${escapeHtml(msg.fullDateTime || msg.timeFormatted || '')}</span>
+        </div>
+        <div class="m-history-item-text">${contentHtml}</div>
+      `;
+
+      elements.mHistoryList.appendChild(item);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  if (elements.mHistoryPartnerSelect) {
+    elements.mHistoryPartnerSelect.addEventListener('change', (e) => {
+      renderMobileHistoryList(e.target.value, elements.mHistorySearchInput?.value || '');
+    });
+  }
+
+  if (elements.mHistorySearchInput) {
+    elements.mHistorySearchInput.addEventListener('input', (e) => {
+      renderMobileHistoryList(elements.mHistoryPartnerSelect?.value, e.target.value);
+    });
+  }
+
+  // Carregar histórico no ecrã principal do chat
+  if (elements.mBtnLoadHistory) {
+    elements.mBtnLoadHistory.addEventListener('click', () => {
+      const peerId = elements.mHistoryPartnerSelect?.value;
+      const messages = ChatHistory.getMessages(peerId);
+      if (messages.length === 0) {
+        return showToast('Não há mensagens para carregar no ecrã.');
+      }
+
+      elements.mMessagesContainer.innerHTML = '';
+      lastRenderedMobileDate = null;
+
+      messages.forEach(m => {
+        if (m.isFile) {
+          appendMobileFile({
+            sender: m.sender,
+            senderName: m.senderName,
+            name: m.fileName,
+            size: m.fileSize,
+            url: '#',
+            isImage: m.isImage,
+            time: m.timestamp
+          }, true);
+        } else if (m.isVoice) {
+          appendMobileVoice({
+            sender: m.sender,
+            senderName: m.senderName,
+            audioData: '',
+            duration: m.duration,
+            time: m.timestamp
+          }, true);
+        } else {
+          appendMobileMessage({
+            sender: m.sender,
+            senderName: m.senderName,
+            text: m.text,
+            time: m.timestamp,
+            id: m.id
+          }, true);
+        }
+      });
+
+      closeMobileHistoryModal();
+      showToast(`${messages.length} mensagens carregadas para o ecrã.`);
+    });
+  }
+
+  // Exportar histórico para ficheiro TXT
+  if (elements.mBtnExportHistory) {
+    elements.mBtnExportHistory.addEventListener('click', () => {
+      const peerId = elements.mHistoryPartnerSelect?.value || client.remotePeerId || 'geral';
+      const messages = ChatHistory.getMessages(peerId);
+      if (messages.length === 0) {
+        return showToast('Não há mensagens neste histórico para exportar.');
+      }
+
+      let txt = `====================================================\n`;
+      txt += `NEXUS P2P - HISTÓRICO COMPLETO DA CONVERSA\n`;
+      txt += `Contacto / ID: ${peerId}\n`;
+      txt += `Data da Exportação: ${new Date().toLocaleString()}\n`;
+      txt += `Total de Mensagens: ${messages.length}\n`;
+      txt += `====================================================\n\n`;
+
+      messages.forEach(m => {
+        const sender = m.senderName || (m.sender === 'me' ? (savedNick || 'Eu') : 'Amigo');
+        const dt = m.fullDateTime || m.dateFormatted || '';
+        let body = m.text;
+        if (m.isFile) body = `[Ficheiro: ${m.fileName || ''} (${formatBytes(m.fileSize || 0)})]`;
+        if (m.isVoice) body = `[Nota de voz: ${m.duration || 0}s]`;
+        txt += `[${dt}] ${sender}: ${body}\n`;
+      });
+
+      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `historico-${peerId}-${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Ficheiro de histórico descarregado!');
+    });
+  }
+
+  // Limpar histórico deste contacto
+  if (elements.mBtnClearHistory) {
+    elements.mBtnClearHistory.addEventListener('click', () => {
+      const peerId = elements.mHistoryPartnerSelect?.value;
+      if (!peerId) return;
+      if (confirm(`Deseja apagar permanentemente o histórico guardado deste contacto (${peerId})?`)) {
+        ChatHistory.clear(peerId);
+        populateMobileHistoryContactSelect();
+        renderMobileHistoryList(elements.mHistoryPartnerSelect?.value);
+        showToast('Histórico apagado.');
+      }
     });
   }
 
@@ -1280,6 +2020,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   client.onCallAccepted = (localStream, remoteStream, isVideo = true) => {
+    isMobileVideoSwapped = false;
+    const tag = elements.mLocalPip?.querySelector('span');
+    if (tag) tag.textContent = 'Você';
+
     switchTab('view-call');
     elements.mPreCallActions.classList.add('hidden');
     elements.mActiveCallActions.classList.remove('hidden');
@@ -1303,6 +2047,7 @@ document.addEventListener('DOMContentLoaded', () => {
     videoEl.muted = isMuted;
     videoEl.playsInline = true;
     videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('webkit-playsinline', '');
     videoEl.setAttribute('autoplay', '');
     videoEl.onloadedmetadata = () => {
       videoEl.play().catch(err => console.warn('Mobile play video:', err));
@@ -1313,11 +2058,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Alternar telas ao tocar na miniatura (Click to Swap no Telemóvel)
   let isMobileVideoSwapped = false;
   elements.mLocalPip.addEventListener('click', () => {
-    isMobileVideoSwapped = !isMobileVideoSwapped;
     const remoteStream = client.remoteStream;
     const localStream = client.localStream;
-    if (!remoteStream && !localStream) return;
+    if (!remoteStream || !localStream) return;
 
+    isMobileVideoSwapped = !isMobileVideoSwapped;
     if (isMobileVideoSwapped) {
       attachVideoStream(elements.mRemoteVideo, localStream, true);
       attachVideoStream(elements.mLocalVideo, remoteStream, false);
@@ -1432,18 +2177,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // RENDERIZAÇÃO DE MENSAGENS NO TELEMÓVEL
   // =========================================================================
-  function appendMobileMessage(data) {
+  function appendMobileMessage(data, skipSave = false) {
     elements.mEmptyState.classList.add('hidden');
+    checkAndAppendDateDivider(elements.mMessagesContainer, data.time);
     const isMe = data.sender === 'me';
     const row = document.createElement('div');
     row.className = `m-msg-row ${isMe ? 'me' : 'peer'}`;
 
+    const dateStr = formatDateOnly(data.time);
+    const timeStr = formatTime(data.time);
+
     row.innerHTML = `
-      <div class="m-msg-avatar">${data.senderName.substring(0, 2).toUpperCase()}</div>
+      <div class="m-msg-avatar">${escapeHtml((data.senderName || 'U').substring(0, 2).toUpperCase())}</div>
       <div class="m-msg-bubble">
         <div>${escapeHtml(data.text)}</div>
         <div class="m-msg-meta">
-          <span>${formatTime(data.time)}</span>
+          <span title="${escapeHtml(dateStr)} às ${escapeHtml(timeStr)}">
+            <small class="msg-date-tag">${escapeHtml(dateStr)}</small>${escapeHtml(timeStr)}
+          </span>
           ${isMe ? `<span id="m-status-${data.id}">✓</span>` : ''}
         </div>
       </div>
@@ -1451,18 +2202,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.mMessagesContainer.appendChild(row);
     scrollToBottom();
+
+    if (!skipSave) {
+      ChatHistory.save(client.remotePeerId, data);
+    }
   }
 
-  function appendMobileFile(data) {
+  function appendMobileFile(data, skipSave = false) {
     elements.mEmptyState.classList.add('hidden');
+    checkAndAppendDateDivider(elements.mMessagesContainer, data.time);
     const isMe = data.sender === 'me';
     const row = document.createElement('div');
     row.className = `m-msg-row ${isMe ? 'me' : 'peer'}`;
 
     let imgTag = data.isImage ? `<img src="${data.url}" class="m-img-msg" onclick="openLightbox('${data.url}')">` : '';
+    const dateStr = formatDateOnly(data.time);
+    const timeStr = formatTime(data.time);
 
     row.innerHTML = `
-      <div class="m-msg-avatar">${data.senderName.substring(0, 2).toUpperCase()}</div>
+      <div class="m-msg-avatar">${escapeHtml((data.senderName || 'U').substring(0, 2).toUpperCase())}</div>
       <div class="m-msg-bubble">
         ${imgTag}
         <div class="m-file-card">
@@ -1476,7 +2234,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </a>
         </div>
         <div class="m-msg-meta">
-          <span>${formatTime(data.time)}</span>
+          <span title="${escapeHtml(dateStr)} às ${escapeHtml(timeStr)}">
+            <small class="msg-date-tag">${escapeHtml(dateStr)}</small>${escapeHtml(timeStr)}
+          </span>
           ${isMe ? '<span>✓✓</span>' : ''}
         </div>
       </div>
@@ -1485,22 +2245,32 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.mMessagesContainer.appendChild(row);
     if (window.lucide) window.lucide.createIcons();
     scrollToBottom();
+
+    if (!skipSave) {
+      ChatHistory.save(client.remotePeerId, data);
+    }
   }
 
-  function appendMobileVoice(data) {
+  function appendMobileVoice(data, skipSave = false) {
     elements.mEmptyState.classList.add('hidden');
+    checkAndAppendDateDivider(elements.mMessagesContainer, data.time);
     const isMe = data.sender === 'me';
     const row = document.createElement('div');
     row.className = `m-msg-row ${isMe ? 'me' : 'peer'}`;
 
+    const dateStr = formatDateOnly(data.time);
+    const timeStr = formatTime(data.time);
+
     row.innerHTML = `
-      <div class="m-msg-avatar">${data.senderName.substring(0, 2).toUpperCase()}</div>
+      <div class="m-msg-avatar">${escapeHtml((data.senderName || 'U').substring(0, 2).toUpperCase())}</div>
       <div class="m-msg-bubble">
         <div style="display:flex; align-items:center; gap:8px;">
           <audio src="${data.audioData}" controls style="max-width:200px; height:32px;"></audio>
         </div>
         <div class="m-msg-meta">
-          <span>${formatTime(data.time)}</span>
+          <span title="${escapeHtml(dateStr)} às ${escapeHtml(timeStr)}">
+            <small class="msg-date-tag">${escapeHtml(dateStr)}</small>${escapeHtml(timeStr)}
+          </span>
           ${isMe ? '<span>✓✓</span>' : ''}
         </div>
       </div>
@@ -1508,6 +2278,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.mMessagesContainer.appendChild(row);
     scrollToBottom();
+
+    if (!skipSave) {
+      ChatHistory.save(client.remotePeerId, data);
+    }
   }
 
   // Lightbox

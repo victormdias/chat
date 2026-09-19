@@ -34,13 +34,47 @@ document.addEventListener('DOMContentLoaded', () => {
     backToSidebarBtn: document.getElementById('backToSidebarBtn'),
     chatHeaderAvatar: document.getElementById('chatHeaderAvatar'),
     chatHeaderStatusDot: document.getElementById('chatHeaderStatusDot'),
+    chatHeaderSubDot: document.getElementById('chatHeaderSubDot'),
     chatHeaderName: document.getElementById('chatHeaderName'),
     chatHeaderStatusText: document.getElementById('chatHeaderStatusText'),
+    headerHistoryBtn: document.getElementById('headerHistoryBtn'),
     searchChatBtn: document.getElementById('searchChatBtn'),
     headerAudioCallBtn: document.getElementById('headerAudioCallBtn'),
     headerVideoCallBtn: document.getElementById('headerVideoCallBtn'),
     headerLeaveBtn: document.getElementById('headerLeaveBtn'),
     headerMoreOptionsBtn: document.getElementById('headerMoreOptionsBtn'),
+    headerMoreDropdown: document.getElementById('headerMoreDropdown'),
+
+    // Chat Search Bar
+    chatSearchBar: document.getElementById('chatSearchBar'),
+    chatSearchInput: document.getElementById('chatSearchInput'),
+    chatSearchCount: document.getElementById('chatSearchCount'),
+    chatSearchPrevBtn: document.getElementById('chatSearchPrevBtn'),
+    chatSearchNextBtn: document.getElementById('chatSearchNextBtn'),
+    chatSearchCloseBtn: document.getElementById('chatSearchCloseBtn'),
+
+    // More Options Menu Items
+    optOpenHistory: document.getElementById('optOpenHistory'),
+    optExportChat: document.getElementById('optExportChat'),
+    optToggleSound: document.getElementById('optToggleSound'),
+    optSoundIcon: document.getElementById('optSoundIcon'),
+    optSoundText: document.getElementById('optSoundText'),
+    optPartnerInfo: document.getElementById('optPartnerInfo'),
+    optClearChat: document.getElementById('optClearChat'),
+    optDisconnect: document.getElementById('optDisconnect'),
+
+    // History Modal Elements
+    historyOverlay: document.getElementById('historyOverlay'),
+    historyModalBox: document.getElementById('historyModalBox'),
+    historyModalHeader: document.getElementById('historyModalHeader'),
+    historyTotalBadge: document.getElementById('historyTotalBadge'),
+    closeHistoryModalBtn: document.getElementById('closeHistoryModalBtn'),
+    historyPartnerSelect: document.getElementById('historyPartnerSelect'),
+    historySearchInput: document.getElementById('historySearchInput'),
+    historyModalList: document.getElementById('historyModalList'),
+    btnExportHistoryTxt: document.getElementById('btnExportHistoryTxt'),
+    btnClearHistoryContact: document.getElementById('btnClearHistoryContact'),
+    btnLoadHistoryIntoChat: document.getElementById('btnLoadHistoryIntoChat'),
 
     chatBodyContainer: document.getElementById('chatBodyContainer'),
     chatHeroState: document.getElementById('chatHeroState'),
@@ -70,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     rightPanelAvatar: document.getElementById('rightPanelAvatar'),
     rightPanelName: document.getElementById('rightPanelName'),
     rightPanelStatus: document.getElementById('rightPanelStatus'),
+    rightPanelStatusDot: document.getElementById('rightPanelStatusDot'),
     detailModeVal: document.getElementById('detailModeVal'),
     detailCryptoVal: document.getElementById('detailCryptoVal'),
     rightPanelPeerId: document.getElementById('rightPanelPeerId'),
@@ -89,8 +124,18 @@ document.addEventListener('DOMContentLoaded', () => {
     myIdModalInput: document.getElementById('myIdModalInput'),
     copyMyIdModalBtn: document.getElementById('copyMyIdModalBtn'),
 
+    // Backup Modal
+    openBackupModalBtn: document.getElementById('openBackupModalBtn'),
+    backupModal: document.getElementById('backupModal'),
+    closeBackupModalBtn: document.getElementById('closeBackupModalBtn'),
+    backupDataTextarea: document.getElementById('backupDataTextarea'),
+    btnExportContacts: document.getElementById('btnExportContacts'),
+    btnImportContacts: document.getElementById('btnImportContacts'),
+
     // Call Modal
     callOverlay: document.getElementById('callOverlay'),
+    callModalBox: document.getElementById('callModalBox'),
+    callModalHeader: document.getElementById('callModalHeader'),
     callModalTitle: document.getElementById('callModalTitle'),
     callDurationDisplay: document.getElementById('callDurationDisplay'),
     callVideoStage: document.getElementById('callVideoStage'),
@@ -204,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // SONS WEB AUDIO API
   // =========================================================================
   let audioCtx = null;
+  let soundEffectsEnabled = true;
   function getCtx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -212,6 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const Sound = {
     send() {
+      if (!soundEffectsEnabled) return;
       try {
         const ctx = getCtx();
         const osc = ctx.createOscillator();
@@ -227,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     },
     receive() {
+      if (!soundEffectsEnabled) return;
       try {
         const ctx = getCtx();
         const osc = ctx.createOscillator();
@@ -317,6 +365,101 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
+  // SISTEMA DE HISTÓRICO DE MENSAGENS E PERSISTÊNCIA
+  // =========================================================================
+  const ChatHistory = {
+    STORAGE_KEY: 'nexus_chat_history_v1',
+
+    getAll() {
+      try {
+        const raw = localStorage.getItem(this.STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    },
+
+    save(peerId, msg) {
+      if (!peerId) peerId = client.remotePeerId || 'geral';
+      try {
+        const all = this.getAll();
+        if (!all[peerId]) all[peerId] = [];
+
+        const now = new Date(msg.time || Date.now());
+        const record = {
+          id: msg.id || 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          sender: msg.sender || 'me',
+          senderName: msg.senderName || (msg.sender === 'me' ? savedNick : 'Amigo'),
+          text: msg.text || '',
+          timestamp: now.getTime(),
+          dateFormatted: now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          timeFormatted: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          fullDateTime: `${now.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' })} às ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          isFile: !!msg.name || !!msg.isFile,
+          fileName: msg.name || null,
+          fileSize: msg.size || null,
+          isImage: !!msg.isImage,
+          isVoice: !!msg.isVoice || !!msg.audioData,
+          duration: msg.duration || null
+        };
+
+        all[peerId].push(record);
+        if (all[peerId].length > 600) {
+          all[peerId] = all[peerId].slice(-600);
+        }
+
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
+        return record;
+      } catch (e) {
+        console.warn('Erro ao guardar histórico:', e);
+      }
+    },
+
+    getMessages(peerId) {
+      if (!peerId) peerId = client.remotePeerId || 'geral';
+      const all = this.getAll();
+      return all[peerId] || [];
+    },
+
+    getAllPeers() {
+      const all = this.getAll();
+      return Object.keys(all).filter(k => all[k] && all[k].length > 0);
+    },
+
+    clear(peerId) {
+      const all = this.getAll();
+      delete all[peerId];
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(all));
+    }
+  };
+
+  function formatDateOnly(timestamp) {
+    const d = new Date(timestamp || Date.now());
+    return d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatDateTime(timestamp) {
+    const d = new Date(timestamp || Date.now());
+    const dateStr = d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${dateStr} às ${timeStr}`;
+  }
+
+  let lastRenderedChatDate = null;
+  function checkAndAppendDateDivider(container, timestamp) {
+    if (!container) return;
+    const dateStr = formatDateOnly(timestamp);
+    if (dateStr !== lastRenderedChatDate) {
+      lastRenderedChatDate = dateStr;
+      const divider = document.createElement('div');
+      divider.className = 'chat-date-divider';
+      divider.innerHTML = `<span class="chat-date-badge"><i data-lucide="calendar" style="width:12px; height:12px;"></i> ${escapeHtml(dateStr)}</span>`;
+      container.appendChild(divider);
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
+  // =========================================================================
   // GERAÇÃO DE QR CODE & LINKS DE PARTILHA
   // =========================================================================
   async function updateShareInfo(id) {
@@ -333,8 +476,13 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     }
 
+    // Obter o caminho base relativo para funcionar tanto em localhost como no GitHub Pages (/chat/)
+    let basePath = window.location.pathname;
+    basePath = basePath.substring(0, basePath.lastIndexOf('/') + 1);
+    if (!basePath.endsWith('/')) basePath += '/';
+
     // Link otimizado para o telemóvel abrir diretamente mobile.html com auto-conexão
-    const mobileUrl = `${window.location.protocol}//${host}/mobile.html#connect=${id}`;
+    const mobileUrl = `${window.location.protocol}//${host}${basePath}mobile.html#connect=${id}`;
 
     elements.shareLinkInput.value = mobileUrl;
     elements.myIdModalInput.value = id;
@@ -404,7 +552,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getStoredContacts() {
     try {
-      const raw = localStorage.getItem('nexus_contacts');
+      let raw = localStorage.getItem('nexus_contacts');
+      if (!raw || raw === '[]' || raw === 'null') {
+        // Tentar restaurar da cópia de segurança se o principal tiver sido apagado
+        const backup = localStorage.getItem('nexus_contacts_backup') || sessionStorage.getItem('nexus_contacts_backup');
+        if (backup && backup !== '[]' && backup !== 'null') {
+          localStorage.setItem('nexus_contacts', backup);
+          raw = backup;
+        }
+      }
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
@@ -440,13 +596,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       list.unshift(item);
     }
-    localStorage.setItem('nexus_contacts', JSON.stringify(list));
+    const json = JSON.stringify(list);
+    localStorage.setItem('nexus_contacts', json);
+    localStorage.setItem('nexus_contacts_backup', json);
+    try { sessionStorage.setItem('nexus_contacts_backup', json); } catch (e) {}
   }
 
   function removeStoredContact(peerId) {
     const cleanId = cleanPeerId(peerId);
     const list = getStoredContacts().filter(c => c.id !== cleanId);
-    localStorage.setItem('nexus_contacts', JSON.stringify(list));
+    const json = JSON.stringify(list);
+    localStorage.setItem('nexus_contacts', json);
+    localStorage.setItem('nexus_contacts_backup', json);
   }
 
   function renderDesktopContacts() {
@@ -542,6 +703,67 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  // Eventos do Modal de Backup de Amigos
+  if (elements.openBackupModalBtn) {
+    elements.openBackupModalBtn.addEventListener('click', () => {
+      const contacts = getStoredContacts();
+      if (elements.backupDataTextarea) {
+        elements.backupDataTextarea.value = contacts.length > 0 ? JSON.stringify(contacts, null, 2) : '';
+      }
+      elements.backupModal.classList.remove('hidden');
+    });
+  }
+
+  if (elements.closeBackupModalBtn) {
+    elements.closeBackupModalBtn.addEventListener('click', () => {
+      elements.backupModal.classList.add('hidden');
+    });
+  }
+
+  if (elements.btnExportContacts) {
+    elements.btnExportContacts.addEventListener('click', () => {
+      const contacts = getStoredContacts();
+      if (contacts.length === 0) {
+        return showToast('Ainda não tem amigos guardados para exportar.');
+      }
+      const json = JSON.stringify(contacts);
+      navigator.clipboard.writeText(json);
+      if (elements.backupDataTextarea) elements.backupDataTextarea.value = JSON.stringify(contacts, null, 2);
+      showToast('Código de backup copiado! Guarde num bloco de notas.');
+    });
+  }
+
+  if (elements.btnImportContacts) {
+    elements.btnImportContacts.addEventListener('click', () => {
+      const text = elements.backupDataTextarea?.value.trim();
+      if (!text) {
+        return showToast('Cole o código de backup no campo de texto acima.');
+      }
+      try {
+        const list = JSON.parse(text);
+        if (!Array.isArray(list) || list.length === 0) {
+          return showToast('Código inválido: lista de amigos vazia.');
+        }
+        const current = getStoredContacts();
+        let added = 0;
+        list.forEach(item => {
+          if (item.id && !current.some(c => c.id === item.id)) {
+            current.push(item);
+            added++;
+          }
+        });
+        const fullJson = JSON.stringify(current);
+        localStorage.setItem('nexus_contacts', fullJson);
+        localStorage.setItem('nexus_contacts_backup', fullJson);
+        renderDesktopContacts();
+        elements.backupModal.classList.add('hidden');
+        showToast(`${list.length} amigo(s) restaurado(s) com sucesso!`);
+      } catch (e) {
+        showToast('Código de backup inválido. Certifique-se de que copiou o código completo.');
+      }
+    });
   }
 
   // Eventos do Modal de Configurações Desktop
@@ -662,6 +884,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Atualizar Cabeçalho do Chat
     elements.chatHeaderName.textContent = partnerName;
     renderAvatar(elements.chatHeaderAvatar, partnerName, client.remoteAvatar);
+    if (elements.chatHeaderStatusDot) elements.chatHeaderStatusDot.className = 'status-dot online';
+    if (elements.chatHeaderSubDot) elements.chatHeaderSubDot.className = 'dot-green-tiny';
     elements.chatHeaderStatusText.textContent = 'Online • Conexão direta P2P';
     if (elements.headerLeaveBtn) elements.headerLeaveBtn.classList.remove('hidden');
 
@@ -669,6 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.rightPanelName.textContent = partnerName;
     renderAvatar(elements.rightPanelAvatar, partnerName, client.remoteAvatar);
     elements.rightPanelStatus.textContent = 'Online agora';
+    if (elements.rightPanelStatusDot) elements.rightPanelStatusDot.className = 'status-dot online';
     elements.rightPanelPeerId.textContent = remoteId;
     elements.detailStatusVal.textContent = 'Conectado';
     elements.detailStatusVal.className = 'detail-value text-green';
@@ -688,7 +913,14 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.sidebarPeerStatus.textContent = 'Offline';
     elements.sidebarStatusText.textContent = 'Desconectado';
 
-    elements.chatHeaderStatusText.textContent = 'Aguardando conexão direta P2P';
+    // Atualizar Cabeçalho para Vermelho / Offline
+    if (elements.chatHeaderStatusDot) elements.chatHeaderStatusDot.className = 'status-dot offline';
+    if (elements.chatHeaderSubDot) elements.chatHeaderSubDot.className = 'dot-red-tiny';
+    elements.chatHeaderStatusText.textContent = 'Offline • Desconectado';
+
+    // Atualizar Painel Direito para Offline
+    if (elements.rightPanelStatus) elements.rightPanelStatus.textContent = 'Offline';
+    if (elements.rightPanelStatusDot) elements.rightPanelStatusDot.className = 'status-dot offline';
     elements.detailStatusVal.textContent = 'Desconectado';
     elements.detailStatusVal.className = 'detail-value';
   };
@@ -1080,10 +1312,19 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.rightPanelAudioCallBtn.addEventListener('click', () => initiateCall(false));
   elements.rightPanelVideoCallBtn.addEventListener('click', () => initiateCall(true));
 
+  function resetCallModalPosition() {
+    if (elements.callModalBox) {
+      elements.callModalBox.style.transform = 'translate(-50%, -50%)';
+      elements.callModalBox.style.left = '50%';
+      elements.callModalBox.style.top = '50%';
+    }
+  }
+
   async function initiateCall(isVideo) {
     if (!isConnected) return showToast('Conecte-se a um amigo para iniciar chamadas.');
     try {
       showToast(isVideo ? 'A ligar com vídeo...' : 'A ligar chamada de voz...');
+      resetCallModalPosition();
       elements.callOverlay.classList.remove('hidden');
       elements.callModalTitle.textContent = isVideo ? 'Chamada de Vídeo' : 'Chamada de Voz';
       setupDesktopCallLayout(isVideo);
@@ -1134,6 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.incomingRingBanner.classList.add('hidden');
     if (pendingCall) {
       const isVideo = pendingCall.metadata?.withVideo !== false;
+      resetCallModalPosition();
       elements.callOverlay.classList.remove('hidden');
       setupDesktopCallLayout(isVideo);
 
@@ -1154,6 +1396,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   client.onCallAccepted = (localStream, remoteStream, isVideo = true) => {
+    isVideoSwapped = false;
+    const tag = elements.localVideoPip?.querySelector('span');
+    if (tag) tag.textContent = 'Você';
+
     elements.callModalTitle.textContent = isVideo ? 'Chamada de Vídeo em Curso' : 'Chamada de Voz em Curso';
     setupDesktopCallLayout(isVideo);
 
@@ -1175,6 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     videoEl.muted = isMuted;
     videoEl.playsInline = true;
     videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('webkit-playsinline', '');
     videoEl.setAttribute('autoplay', '');
     videoEl.onloadedmetadata = () => {
       videoEl.play().catch(err => console.warn('Play video:', err));
@@ -1187,11 +1434,11 @@ document.addEventListener('DOMContentLoaded', () => {
   elements.localVideoPip.style.cursor = 'pointer';
   elements.localVideoPip.title = 'Clique para alternar as telas';
   elements.localVideoPip.addEventListener('click', () => {
-    isVideoSwapped = !isVideoSwapped;
     const remoteStream = client.remoteStream;
     const localStream = client.localStream;
-    if (!remoteStream && !localStream) return;
+    if (!remoteStream || !localStream) return;
 
+    isVideoSwapped = !isVideoSwapped;
     if (isVideoSwapped) {
       attachVideoStream(elements.remoteVideoFeed, localStream, true);
       attachVideoStream(elements.localVideoFeed, remoteStream, false);
@@ -1281,15 +1528,650 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.callDurationDisplay.textContent = '00:00';
   }
 
+  // Janela de Chamada Arrastável (Draggable Modal)
+  function makeElementDraggable(box, handle) {
+    if (!box || !handle) return;
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+
+    const onPointerDown = (e) => {
+      // Evitar arrastar se o clique foi num botão ou na tag de duração
+      if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.call-duration-tag')) {
+        return;
+      }
+
+      isDragging = true;
+      handle.style.cursor = 'grabbing';
+
+      const isTouch = e.type.startsWith('touch');
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+      startX = clientX;
+      startY = clientY;
+
+      const rect = box.getBoundingClientRect();
+      box.style.transform = 'none';
+      box.style.left = `${rect.left}px`;
+      box.style.top = `${rect.top}px`;
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      document.addEventListener('mousemove', onPointerMove, { passive: false });
+      document.addEventListener('mouseup', onPointerUp);
+      document.addEventListener('touchmove', onPointerMove, { passive: false });
+      document.addEventListener('touchend', onPointerUp);
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onPointerMove = (e) => {
+      if (!isDragging) return;
+      const isTouch = e.type.startsWith('touch');
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+
+      let newLeft = initialLeft + deltaX;
+      let newTop = initialTop + deltaY;
+
+      const rect = box.getBoundingClientRect();
+      const maxLeft = window.innerWidth - rect.width - 10;
+      const maxTop = window.innerHeight - rect.height - 10;
+
+      newLeft = Math.max(10, Math.min(maxLeft, newLeft));
+      newTop = Math.max(10, Math.min(maxTop, newTop));
+
+      box.style.left = `${newLeft}px`;
+      box.style.top = `${newTop}px`;
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onPointerUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      handle.style.cursor = 'grab';
+      document.removeEventListener('mousemove', onPointerMove);
+      document.removeEventListener('mouseup', onPointerUp);
+      document.removeEventListener('touchmove', onPointerMove);
+      document.removeEventListener('touchend', onPointerUp);
+    };
+
+    handle.addEventListener('mousedown', onPointerDown);
+    handle.addEventListener('touchstart', onPointerDown, { passive: false });
+  }
+
+  makeElementDraggable(elements.callModalBox, elements.callModalHeader);
+
   // Limpar Conversa
   elements.rightPanelClearChatBtn.addEventListener('click', () => {
     if (confirm('Deseja limpar as mensagens do chat?')) {
       elements.messagesFlowContainer.innerHTML = '';
       elements.chatHeroState.classList.remove('hidden');
       elements.messagesFlowContainer.classList.add('hidden');
+      clearSearchHighlights();
       showToast('Conversa limpa.');
     }
   });
+
+  // =========================================================================
+  // SISTEMA DE PESQUISA NA CONVERSA (LUPA)
+  // =========================================================================
+  let searchMatches = [];
+  let currentSearchIndex = -1;
+
+  function clearSearchHighlights() {
+    if (!elements.messagesFlowContainer) return;
+    const marks = elements.messagesFlowContainer.querySelectorAll('mark.chat-search-match');
+    marks.forEach(mark => {
+      const parent = mark.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(mark.textContent), mark);
+        parent.normalize();
+      }
+    });
+    searchMatches = [];
+    currentSearchIndex = -1;
+    if (elements.chatSearchCount) elements.chatSearchCount.textContent = '0/0';
+  }
+
+  function performSearch(query) {
+    clearSearchHighlights();
+    const q = (query || '').trim().toLowerCase();
+    if (!q || !elements.messagesFlowContainer) {
+      if (elements.chatSearchCount) elements.chatSearchCount.textContent = '0/0';
+      return;
+    }
+
+    const bubbles = elements.messagesFlowContainer.querySelectorAll('.msg-bubble');
+    bubbles.forEach(bubble => {
+      const textNodes = [];
+      const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (node.parentNode && (node.parentNode.closest('.msg-meta') || node.parentNode.closest('.msg-file-card'))) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+
+      let n;
+      while ((n = walker.nextNode())) {
+        if (n.nodeValue && n.nodeValue.toLowerCase().includes(q)) {
+          textNodes.push(n);
+        }
+      }
+
+      textNodes.forEach(node => {
+        const val = node.nodeValue;
+        const lowerVal = val.toLowerCase();
+        let pos = 0;
+        const fragment = document.createDocumentFragment();
+
+        while (pos < val.length) {
+          const idx = lowerVal.indexOf(q, pos);
+          if (idx === -1) {
+            fragment.appendChild(document.createTextNode(val.substring(pos)));
+            break;
+          }
+          if (idx > pos) {
+            fragment.appendChild(document.createTextNode(val.substring(pos, idx)));
+          }
+          const mark = document.createElement('mark');
+          mark.className = 'chat-search-match';
+          mark.textContent = val.substring(idx, idx + q.length);
+          fragment.appendChild(mark);
+          searchMatches.push(mark);
+          pos = idx + q.length;
+        }
+        if (node.parentNode) {
+          node.parentNode.replaceChild(fragment, node);
+        }
+      });
+    });
+
+    if (searchMatches.length > 0) {
+      currentSearchIndex = 0;
+      updateActiveSearchMatch();
+    } else {
+      if (elements.chatSearchCount) elements.chatSearchCount.textContent = '0/0';
+    }
+  }
+
+  function updateActiveSearchMatch() {
+    searchMatches.forEach((m, idx) => {
+      if (idx === currentSearchIndex) {
+        m.classList.add('chat-search-active');
+        m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        m.classList.remove('chat-search-active');
+      }
+    });
+    if (elements.chatSearchCount) {
+      elements.chatSearchCount.textContent = `${currentSearchIndex + 1}/${searchMatches.length}`;
+    }
+  }
+
+  function nextSearchMatch() {
+    if (searchMatches.length === 0) return;
+    currentSearchIndex = (currentSearchIndex + 1) % searchMatches.length;
+    updateActiveSearchMatch();
+  }
+
+  function prevSearchMatch() {
+    if (searchMatches.length === 0) return;
+    currentSearchIndex = (currentSearchIndex - 1 + searchMatches.length) % searchMatches.length;
+    updateActiveSearchMatch();
+  }
+
+  function toggleSearchBar() {
+    if (!elements.chatSearchBar) return;
+    const isHidden = elements.chatSearchBar.classList.toggle('hidden');
+    if (!isHidden) {
+      elements.chatSearchInput.focus();
+      elements.chatSearchInput.select();
+      if (elements.chatSearchInput.value) {
+        performSearch(elements.chatSearchInput.value);
+      }
+    } else {
+      clearSearchHighlights();
+    }
+  }
+
+  if (elements.searchChatBtn) {
+    elements.searchChatBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.headerMoreDropdown?.classList.add('hidden');
+      toggleSearchBar();
+    });
+  }
+
+  if (elements.chatSearchCloseBtn) {
+    elements.chatSearchCloseBtn.addEventListener('click', () => {
+      elements.chatSearchBar?.classList.add('hidden');
+      clearSearchHighlights();
+    });
+  }
+
+  if (elements.chatSearchInput) {
+    elements.chatSearchInput.addEventListener('input', (e) => {
+      performSearch(e.target.value);
+    });
+
+    elements.chatSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) prevSearchMatch();
+        else nextSearchMatch();
+      } else if (e.key === 'Escape') {
+        elements.chatSearchBar?.classList.add('hidden');
+        clearSearchHighlights();
+      }
+    });
+  }
+
+  if (elements.chatSearchNextBtn) {
+    elements.chatSearchNextBtn.addEventListener('click', nextSearchMatch);
+  }
+
+  if (elements.chatSearchPrevBtn) {
+    elements.chatSearchPrevBtn.addEventListener('click', prevSearchMatch);
+  }
+
+  // =========================================================================
+  // SISTEMA DE MAIS OPÇÕES (3 PONTINHOS)
+  // =========================================================================
+  if (elements.headerMoreOptionsBtn && elements.headerMoreDropdown) {
+    elements.headerMoreOptionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      elements.headerMoreDropdown.classList.toggle('hidden');
+    });
+
+    // Fechar ao clicar fora
+    document.addEventListener('click', (e) => {
+      if (elements.headerMoreDropdown && !elements.headerMoreDropdown.contains(e.target) && e.target !== elements.headerMoreOptionsBtn) {
+        elements.headerMoreDropdown.classList.add('hidden');
+      }
+    });
+  }
+
+  // 1. Exportar conversa (.txt)
+  if (elements.optExportChat) {
+    elements.optExportChat.addEventListener('click', () => {
+      elements.headerMoreDropdown?.classList.add('hidden');
+      exportChatToTxt();
+    });
+  }
+
+  function exportChatToTxt() {
+    const rows = elements.messagesFlowContainer.querySelectorAll('.msg-row');
+    if (rows.length === 0) {
+      return showToast('Não há mensagens na conversa para exportar.');
+    }
+
+    const partnerName = client.remoteNickname || 'Amigo';
+    const partnerId = client.remotePeerId || 'Desconhecido';
+    const dateStr = new Date().toLocaleString();
+
+    let exportContent = `====================================================\n`;
+    exportContent += `NEXUS P2P - HISTÓRICO DE CONVERSA ENCRIPTADA\n`;
+    exportContent += `Data de Exportação: ${dateStr}\n`;
+    exportContent += `Parceiro: ${partnerName} (ID: ${partnerId})\n`;
+    exportContent += `====================================================\n\n`;
+
+    rows.forEach(row => {
+      const isMe = row.classList.contains('me');
+      const sender = isMe ? (savedNick || 'Eu') : partnerName;
+      const time = row.querySelector('.msg-meta span')?.textContent || '';
+      
+      const fileCard = row.querySelector('.msg-file-card strong');
+      const voiceCard = row.querySelector('.voice-player-bubble');
+      const textEl = row.querySelector('.msg-bubble > div:first-child');
+
+      let body = '';
+      if (fileCard) {
+        body = `[Ficheiro enviado: ${fileCard.textContent.trim()}]`;
+      } else if (voiceCard) {
+        body = `[Mensagem de voz]`;
+      } else if (textEl) {
+        body = textEl.textContent.trim();
+      }
+
+      if (body) {
+        exportContent += `[${time}] ${sender}: ${body}\n`;
+      }
+    });
+
+    const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversa-${partnerName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Conversa exportada com sucesso!');
+  }
+
+  // 2. Alternar sons de notificação
+  if (elements.optToggleSound) {
+    elements.optToggleSound.addEventListener('click', () => {
+      soundEffectsEnabled = !soundEffectsEnabled;
+      if (elements.optSoundIcon) {
+        elements.optSoundIcon.setAttribute('data-lucide', soundEffectsEnabled ? 'volume-2' : 'volume-x');
+      }
+      if (elements.optSoundText) {
+        elements.optSoundText.textContent = soundEffectsEnabled ? 'Sons de Notificação: Ligados' : 'Sons de Notificação: Silenciados';
+      }
+      if (window.lucide) window.lucide.createIcons();
+      showToast(soundEffectsEnabled ? 'Sons ativados' : 'Sons silenciados');
+      elements.headerMoreDropdown?.classList.add('hidden');
+    });
+  }
+
+  // 3. Informações do Contacto
+  if (elements.optPartnerInfo) {
+    elements.optPartnerInfo.addEventListener('click', () => {
+      elements.headerMoreDropdown?.classList.add('hidden');
+      if (elements.rightPanelPeerId) {
+        elements.rightPanelPeerId.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        elements.rightPanelPeerId.style.boxShadow = '0 0 0 3px var(--primary)';
+        setTimeout(() => { if (elements.rightPanelPeerId) elements.rightPanelPeerId.style.boxShadow = ''; }, 2200);
+        showToast(`ID do Amigo: ${client.remotePeerId || 'Nenhum par conectado'}`);
+      }
+    });
+  }
+
+  // 4. Limpar Mensagens
+  if (elements.optClearChat) {
+    elements.optClearChat.addEventListener('click', () => {
+      elements.headerMoreDropdown?.classList.add('hidden');
+      elements.rightPanelClearChatBtn?.click();
+    });
+  }
+
+  // 5. Desconectar Amigo
+  if (elements.optDisconnect) {
+    elements.optDisconnect.addEventListener('click', () => {
+      elements.headerMoreDropdown?.classList.add('hidden');
+      if (confirm('Deseja realmente desconectar deste amigo?')) {
+        client.disconnect();
+        showToast('Desconectado com sucesso.');
+      }
+    });
+  }
+
+  // =========================================================================
+  // CONTROLADOR DA MODAL ARRASTÁVEL DE HISTÓRICO DE MENSAGENS
+  // =========================================================================
+  makeElementDraggable(elements.historyModalBox, elements.historyModalHeader);
+
+  function resetHistoryModalPosition() {
+    if (elements.historyModalBox) {
+      elements.historyModalBox.style.transform = 'translate(-50%, -50%)';
+      elements.historyModalBox.style.left = '50%';
+      elements.historyModalBox.style.top = '50%';
+    }
+  }
+
+  function openHistoryModal(targetPeerId) {
+    elements.headerMoreDropdown?.classList.add('hidden');
+    elements.chatSearchBar?.classList.add('hidden');
+    clearSearchHighlights();
+
+    populateHistoryContactSelect(targetPeerId);
+    resetHistoryModalPosition();
+    elements.historyOverlay?.classList.remove('hidden');
+    renderHistoryList(elements.historyPartnerSelect?.value, elements.historySearchInput?.value || '');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeHistoryModal() {
+    elements.historyOverlay?.classList.add('hidden');
+  }
+
+  if (elements.headerHistoryBtn) {
+    elements.headerHistoryBtn.addEventListener('click', () => openHistoryModal(client.remotePeerId));
+  }
+
+  if (elements.optOpenHistory) {
+    elements.optOpenHistory.addEventListener('click', () => openHistoryModal(client.remotePeerId));
+  }
+
+  if (elements.closeHistoryModalBtn) {
+    elements.closeHistoryModalBtn.addEventListener('click', closeHistoryModal);
+  }
+
+  // Fechar histórico com a tecla Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.historyOverlay && !elements.historyOverlay.classList.contains('hidden')) {
+      closeHistoryModal();
+    }
+  });
+
+  function populateHistoryContactSelect(selectedId) {
+    if (!elements.historyPartnerSelect) return;
+    elements.historyPartnerSelect.innerHTML = '';
+
+    const peersWithHistory = ChatHistory.getAllPeers();
+    const storedContacts = getStoredContacts();
+
+    // Se o par atual estiver conectado e não tiver ainda histórico, adicioná-lo
+    if (client.remotePeerId && !peersWithHistory.includes(client.remotePeerId)) {
+      peersWithHistory.unshift(client.remotePeerId);
+    }
+
+    if (peersWithHistory.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = 'geral';
+      opt.textContent = 'Sem conversas guardadas ainda';
+      elements.historyPartnerSelect.appendChild(opt);
+      return;
+    }
+
+    peersWithHistory.forEach(pid => {
+      const opt = document.createElement('option');
+      opt.value = pid;
+      const contact = Array.isArray(storedContacts) ? storedContacts.find(c => c.id === pid) : storedContacts[pid];
+      const name = (client.remotePeerId === pid && client.remoteNickname) 
+        ? client.remoteNickname 
+        : (contact?.name || pid);
+      opt.textContent = `${name} (${pid})`;
+      if (selectedId && selectedId === pid) {
+        opt.selected = true;
+      }
+      elements.historyPartnerSelect.appendChild(opt);
+    });
+
+    if (!elements.historyPartnerSelect.value && elements.historyPartnerSelect.options.length > 0) {
+      elements.historyPartnerSelect.selectedIndex = 0;
+    }
+  }
+
+  function renderHistoryList(peerId, filterQuery = '') {
+    if (!elements.historyModalList) return;
+    elements.historyModalList.innerHTML = '';
+
+    if (!peerId) {
+      peerId = elements.historyPartnerSelect?.value || client.remotePeerId || 'geral';
+    }
+
+    const messages = ChatHistory.getMessages(peerId);
+    const q = (filterQuery || '').trim().toLowerCase();
+
+    const filtered = messages.filter(m => {
+      if (!q) return true;
+      const textMatch = m.text && m.text.toLowerCase().includes(q);
+      const dateMatch = (m.dateFormatted && m.dateFormatted.includes(q)) || (m.fullDateTime && m.fullDateTime.toLowerCase().includes(q));
+      const senderMatch = m.senderName && m.senderName.toLowerCase().includes(q);
+      const fileMatch = m.fileName && m.fileName.toLowerCase().includes(q);
+      return textMatch || dateMatch || senderMatch || fileMatch;
+    });
+
+    if (elements.historyTotalBadge) {
+      elements.historyTotalBadge.textContent = `${filtered.length} mensagem${filtered.length === 1 ? '' : 's'}`;
+    }
+
+    if (filtered.length === 0) {
+      elements.historyModalList.innerHTML = `
+        <div class="history-empty-placeholder">
+          <i data-lucide="inbox" style="width:36px; height:36px; opacity:0.4; margin-bottom:8px;"></i>
+          <p>Nenhuma mensagem encontrada neste histórico.</p>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    let lastGroupDate = null;
+    filtered.forEach(msg => {
+      if (msg.dateFormatted && msg.dateFormatted !== lastGroupDate) {
+        lastGroupDate = msg.dateFormatted;
+        const div = document.createElement('div');
+        div.className = 'chat-date-divider';
+        div.innerHTML = `<span class="chat-date-badge"><i data-lucide="calendar" style="width:12px; height:12px;"></i> ${escapeHtml(msg.dateFormatted)}</span>`;
+        elements.historyModalList.appendChild(div);
+      }
+
+      const item = document.createElement('div');
+      item.className = `history-item ${msg.sender === 'me' ? 'me' : 'peer'}`;
+
+      let contentHtml = escapeHtml(msg.text);
+      if (msg.isFile) {
+        contentHtml = `📎 <strong>${escapeHtml(msg.fileName || 'Ficheiro')}</strong> ${msg.fileSize ? `(${formatBytes(msg.fileSize)})` : ''}`;
+      } else if (msg.isVoice) {
+        contentHtml = `🎙️ <em>Mensagem de voz gravada</em> ${msg.duration ? `(${msg.duration}s)` : ''}`;
+      }
+
+      item.innerHTML = `
+        <div class="history-item-top">
+          <span class="history-item-sender">${escapeHtml(msg.senderName || (msg.sender === 'me' ? savedNick : 'Amigo'))}</span>
+          <span class="history-item-datetime">${escapeHtml(msg.fullDateTime || msg.timeFormatted || '')}</span>
+        </div>
+        <div class="history-item-text">${contentHtml}</div>
+      `;
+
+      elements.historyModalList.appendChild(item);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  if (elements.historyPartnerSelect) {
+    elements.historyPartnerSelect.addEventListener('change', (e) => {
+      renderHistoryList(e.target.value, elements.historySearchInput?.value || '');
+    });
+  }
+
+  if (elements.historySearchInput) {
+    elements.historySearchInput.addEventListener('input', (e) => {
+      renderHistoryList(elements.historyPartnerSelect?.value, e.target.value);
+    });
+  }
+
+  // Carregar histórico no ecrã do Chat
+  if (elements.btnLoadHistoryIntoChat) {
+    elements.btnLoadHistoryIntoChat.addEventListener('click', () => {
+      const peerId = elements.historyPartnerSelect?.value;
+      const messages = ChatHistory.getMessages(peerId);
+      if (messages.length === 0) {
+        return showToast('Não há mensagens para carregar no ecrã.');
+      }
+
+      elements.messagesFlowContainer.innerHTML = '';
+      lastRenderedChatDate = null;
+
+      messages.forEach(m => {
+        if (m.isFile) {
+          appendFileMsg({
+            sender: m.sender,
+            senderName: m.senderName,
+            name: m.fileName,
+            size: m.fileSize,
+            url: '#',
+            isImage: m.isImage,
+            time: m.timestamp
+          }, true);
+        } else if (m.isVoice) {
+          appendVoiceMsg({
+            sender: m.sender,
+            senderName: m.senderName,
+            audioData: '',
+            duration: m.duration,
+            time: m.timestamp
+          }, true);
+        } else {
+          appendMessage({
+            sender: m.sender,
+            senderName: m.senderName,
+            text: m.text,
+            time: m.timestamp,
+            id: m.id
+          }, true);
+        }
+      });
+
+      closeHistoryModal();
+      showToast(`${messages.length} mensagens carregadas para o ecrã.`);
+    });
+  }
+
+  // Exportar histórico para ficheiro TXT
+  if (elements.btnExportHistoryTxt) {
+    elements.btnExportHistoryTxt.addEventListener('click', () => {
+      const peerId = elements.historyPartnerSelect?.value || client.remotePeerId || 'geral';
+      const messages = ChatHistory.getMessages(peerId);
+      if (messages.length === 0) {
+        return showToast('Não há mensagens neste histórico para exportar.');
+      }
+
+      let txt = `====================================================\n`;
+      txt += `NEXUS P2P - HISTÓRICO COMPLETO DA CONVERSA\n`;
+      txt += `Contacto / ID: ${peerId}\n`;
+      txt += `Data da Exportação: ${new Date().toLocaleString()}\n`;
+      txt += `Total de Mensagens: ${messages.length}\n`;
+      txt += `====================================================\n\n`;
+
+      messages.forEach(m => {
+        const sender = m.senderName || (m.sender === 'me' ? savedNick : 'Amigo');
+        const dt = m.fullDateTime || m.dateFormatted || '';
+        let body = m.text;
+        if (m.isFile) body = `[Ficheiro: ${m.fileName || ''} (${formatBytes(m.fileSize || 0)})]`;
+        if (m.isVoice) body = `[Nota de voz: ${m.duration || 0}s]`;
+        txt += `[${dt}] ${sender}: ${body}\n`;
+      });
+
+      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `historico-${peerId}-${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Ficheiro de histórico descarregado!');
+    });
+  }
+
+  // Limpar histórico deste contacto
+  if (elements.btnClearHistoryContact) {
+    elements.btnClearHistoryContact.addEventListener('click', () => {
+      const peerId = elements.historyPartnerSelect?.value;
+      if (!peerId) return;
+      if (confirm(`Deseja apagar permanentemente o histórico guardado deste contacto (${peerId})?`)) {
+        ChatHistory.clear(peerId);
+        populateHistoryContactSelect();
+        renderHistoryList(elements.historyPartnerSelect?.value);
+        showToast('Histórico apagado.');
+      }
+    });
+  }
 
   // =========================================================================
   // RENDERIZAÇÃO DE MENSAGENS NO CHAT
@@ -1299,17 +2181,23 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.messagesFlowContainer.classList.remove('hidden');
   }
 
-  function appendMessage(data) {
+  function appendMessage(data, skipSave = false) {
     prepareChatContainer();
+    checkAndAppendDateDivider(elements.messagesFlowContainer, data.time);
     const isMe = data.sender === 'me';
     const row = document.createElement('div');
     row.className = `msg-row ${isMe ? 'me' : 'peer'}`;
+
+    const dateStr = formatDateOnly(data.time);
+    const timeStr = formatTime(data.time);
 
     row.innerHTML = `
       <div class="msg-bubble">
         <div>${escapeHtml(data.text)}</div>
         <div class="msg-meta">
-          <span>${formatTime(data.time)}</span>
+          <span title="${escapeHtml(dateStr)} às ${escapeHtml(timeStr)}">
+            <small class="msg-date-tag">${escapeHtml(dateStr)}</small>${escapeHtml(timeStr)}
+          </span>
           ${isMe ? `<span id="status-${data.id}">✓</span>` : ''}
         </div>
       </div>
@@ -1317,15 +2205,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.messagesFlowContainer.appendChild(row);
     scrollChat();
+
+    if (!skipSave) {
+      ChatHistory.save(client.remotePeerId, data);
+    }
   }
 
-  function appendFileMsg(data) {
+  function appendFileMsg(data, skipSave = false) {
     prepareChatContainer();
+    checkAndAppendDateDivider(elements.messagesFlowContainer, data.time);
     const isMe = data.sender === 'me';
     const row = document.createElement('div');
     row.className = `msg-row ${isMe ? 'me' : 'peer'}`;
 
     let imgTag = data.isImage ? `<img src="${data.url}" class="msg-image" onclick="openLightbox('${data.url}')">` : '';
+    const dateStr = formatDateOnly(data.time);
+    const timeStr = formatTime(data.time);
 
     row.innerHTML = `
       <div class="msg-bubble">
@@ -1341,7 +2236,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </a>
         </div>
         <div class="msg-meta">
-          <span>${formatTime(data.time)}</span>
+          <span title="${escapeHtml(dateStr)} às ${escapeHtml(timeStr)}">
+            <small class="msg-date-tag">${escapeHtml(dateStr)}</small>${escapeHtml(timeStr)}
+          </span>
           ${isMe ? '<span>✓✓</span>' : ''}
         </div>
       </div>
@@ -1350,13 +2247,21 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.messagesFlowContainer.appendChild(row);
     if (window.lucide) window.lucide.createIcons();
     scrollChat();
+
+    if (!skipSave) {
+      ChatHistory.save(client.remotePeerId, data);
+    }
   }
 
-  function appendVoiceMsg(data) {
+  function appendVoiceMsg(data, skipSave = false) {
     prepareChatContainer();
+    checkAndAppendDateDivider(elements.messagesFlowContainer, data.time);
     const isMe = data.sender === 'me';
     const row = document.createElement('div');
     row.className = `msg-row ${isMe ? 'me' : 'peer'}`;
+
+    const dateStr = formatDateOnly(data.time);
+    const timeStr = formatTime(data.time);
 
     row.innerHTML = `
       <div class="msg-bubble">
@@ -1364,7 +2269,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <audio src="${data.audioData}" controls style="max-width:220px; height:36px;"></audio>
         </div>
         <div class="msg-meta">
-          <span>${formatTime(data.time)}</span>
+          <span title="${escapeHtml(dateStr)} às ${escapeHtml(timeStr)}">
+            <small class="msg-date-tag">${escapeHtml(dateStr)}</small>${escapeHtml(timeStr)}
+          </span>
           ${isMe ? '<span>✓✓</span>' : ''}
         </div>
       </div>
@@ -1372,6 +2279,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elements.messagesFlowContainer.appendChild(row);
     scrollChat();
+
+    if (!skipSave) {
+      ChatHistory.save(client.remotePeerId, data);
+    }
   }
 
   // Lightbox
