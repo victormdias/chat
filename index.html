@@ -592,35 +592,74 @@
     </div>
   </div>
 
-  <!-- MODAL DE BACKUP / EXPORTAR E IMPORTAR AMIGOS -->
+  <!-- MODAL DE BACKUP / EXPORTAR E IMPORTAR AMIGOS (.JSON) -->
   <div class="modal-backdrop hidden" id="backupModal">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 460px;">
       <div class="modal-card-header">
-        <h3><i data-lucide="folder-sync"></i> Backup de Amigos</h3>
+        <h3><i data-lucide="folder-sync"></i> Backup de Amigos (.JSON)</h3>
         <button class="icon-btn-close" id="closeBackupModalBtn"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-card-body">
-        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">
-          Guarde a lista dos seus amigos para nunca a perder, mesmo ao limpar o navegador ou aceder de outro computador/telemóvel:
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px; line-height:1.4;">
+          Guarde os seus amigos e respetivos dados num ficheiro <strong>.json</strong>. Para restaurar, basta carregar o ficheiro guardado:
         </p>
 
-        <div class="modal-field">
-          <label>Código de Backup dos Amigos:</label>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <textarea id="backupDataTextarea" rows="4" style="width:100%; font-family:monospace; font-size:0.8rem; padding:8px; border-radius:var(--radius-md); border:1px solid var(--border-light); resize:none;" placeholder="Clique em 'Copiar Backup' para guardar ou cole aqui para restaurar..."></textarea>
+        <!-- AÇÕES PRINCIPAIS EM FORMATO .JSON -->
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
+          <!-- BOTÃO DESCARREGAR FICHEIRO JSON -->
+          <button type="button" class="btn-copy-modal" id="btnDownloadJsonBackup" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(2, 132, 199, 0.16) 100%); border:1px solid rgba(2, 132, 199, 0.3); border-radius:var(--radius-md); cursor:pointer; width:100%; transition:all 0.2s ease;">
+            <div style="display:flex; align-items:center; gap:10px; text-align:left;">
+              <div style="width:36px; height:36px; border-radius:8px; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <i data-lucide="file-down"></i>
+              </div>
+              <div>
+                <div style="font-weight:700; font-size:0.88rem; color:var(--text-main);">Guardar Ficheiro JSON</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Descarrega nexus-amigos-backup.json</div>
+              </div>
+            </div>
+            <i data-lucide="download" style="color:var(--primary); width:18px; height:18px;"></i>
+          </button>
+
+          <!-- INPUT DE FICHEIRO ESCONDIDO -->
+          <input type="file" id="contactsJsonFileInput" accept=".json,application/json" style="display:none;">
+
+          <!-- ÁREA CLICÁVEL / DRAG & DROP PARA RESTAURAR FICHEIRO JSON -->
+          <div id="backupDropZone" style="border:2px dashed rgba(16, 185, 129, 0.4); background:rgba(16, 185, 129, 0.05); border-radius:var(--radius-md); padding:16px; text-align:center; cursor:pointer; transition:all 0.2s ease;">
+            <div style="width:38px; height:38px; margin:0 auto 6px; border-radius:50%; background:rgba(16, 185, 129, 0.15); color:#059669; display:flex; align-items:center; justify-content:center;">
+              <i data-lucide="file-up"></i>
+            </div>
+            <div style="font-weight:700; font-size:0.88rem; color:#065f46; margin-bottom:2px;">Carregar Ficheiro JSON para Restaurar</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Clique para escolher o ficheiro .json ou arraste para aqui</div>
           </div>
         </div>
 
-        <div style="display:flex; gap:10px; margin-top:12px;">
-          <button type="button" class="btn-copy-modal" id="btnExportContacts" style="flex:1; justify-content:center; padding:10px;">
-            <i data-lucide="copy"></i> Copiar Backup
-          </button>
-          <button type="button" class="btn-copy-modal" id="btnImportContacts" style="flex:1; justify-content:center; padding:10px; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:white;">
-            <i data-lucide="download"></i> Restaurar Amigos
-          </button>
+        <!-- OPÇÃO DE BACKUP AUTOMÁTICO -->
+        <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-light); border-radius:var(--radius-md); padding:10px 12px; margin-bottom:14px; display:flex; align-items:flex-start; gap:8px;">
+          <input type="checkbox" id="chkAutoDownloadBackup" style="margin-top:3px; cursor:pointer; width:16px; height:16px; accent-color:var(--primary);">
+          <label for="chkAutoDownloadBackup" style="font-size:0.8rem; color:var(--text-main); cursor:pointer; line-height:1.35;">
+            <strong>Backup Automático:</strong> Descarregar ficheiro .json automaticamente sempre que adicionar ou alterar amigos.
+          </label>
         </div>
+
+        <!-- OPÇÕES AVANÇADAS (CÓDIGO TEXTO) -->
+        <details style="font-size:0.8rem; color:var(--text-muted);">
+          <summary style="cursor:pointer; font-weight:600; padding:4px 0; user-select:none;">Opções avançadas (copiar/colar código texto)</summary>
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+            <textarea id="backupDataTextarea" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--border-light); resize:none;" placeholder="Cole aqui o código JSON para restaurar manualmente..."></textarea>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn-copy-modal" id="btnExportContacts" style="flex:1; justify-content:center; padding:8px; font-size:0.8rem;">
+                <i data-lucide="copy"></i> Copiar Código
+              </button>
+              <button type="button" class="btn-copy-modal" id="btnImportContacts" style="flex:1; justify-content:center; padding:8px; font-size:0.8rem; background:linear-gradient(135deg, #059669 0%, #10b981 100%); color:white;">
+                <i data-lucide="check"></i> Restaurar Código
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
+  </div>
+
   <!-- MODAL ARRASTÁVEL DE HISTÓRICO DE CONVERSAS -->
   <div class="history-modal-overlay hidden" id="historyOverlay">
     <div class="history-modal-box" id="historyModalBox">

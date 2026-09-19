@@ -33,6 +33,9 @@
         </div>
       </div>
       <div class="top-bar-right">
+        <button class="m-icon-btn" id="mHeaderAddFriendBtn" title="Adicionar Novo Amigo">
+          <i data-lucide="user-plus"></i>
+        </button>
         <button class="m-icon-btn" id="mHistoryBtn" title="Histórico de Mensagens">
           <i data-lucide="history"></i>
         </button>
@@ -68,6 +71,13 @@
 
     <!-- DROPDOWN MAIS OPÇÕES MOBILE -->
     <div class="m-more-dropdown hidden" id="mMoreDropdown">
+      <button type="button" class="m-dropdown-item" id="mOptAddFriend">
+        <i data-lucide="user-plus"></i> <span>+ Adicionar Novo Amigo</span>
+      </button>
+      <button type="button" class="m-dropdown-item" id="mOptMyFriends">
+        <i data-lucide="users"></i> <span>Ver Lista de Amigos</span>
+      </button>
+      <div class="m-dropdown-divider"></div>
       <button type="button" class="m-dropdown-item" id="mOptHistory">
         <i data-lucide="history"></i> <span>Histórico de Mensagens</span>
       </button>
@@ -84,30 +94,6 @@
       <button type="button" class="m-dropdown-item text-danger" id="mOptDisconnect">
         <i data-lucide="log-out"></i> <span>Desconectar Amigo</span>
       </button>
-    </div>
-
-    <!-- MODAL ARRASTÁVEL / FLUTUANTE DE HISTÓRICO MOBILE -->
-    <div class="m-history-overlay hidden" id="mHistoryOverlay">
-      <div class="m-history-box" id="mHistoryBox">
-        <div class="m-history-header" id="mHistoryHeader">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <i data-lucide="grip-horizontal" style="color:var(--text-dim); width:16px; height:16px;"></i>
-            <i data-lucide="history" style="color:var(--primary); width:18px; height:18px;"></i>
-            <strong>Histórico de Mensagens</strong>
-          </div>
-          <button type="button" class="m-btn-close-hist" id="mCloseHistoryBtn"><i data-lucide="x"></i></button>
-        </div>
-        <div class="m-history-toolbar">
-          <select id="mHistoryPartnerSelect" class="m-history-select"></select>
-          <input type="text" id="mHistorySearchInput" placeholder="Pesquisar por texto ou data (ex: 19/09)...">
-        </div>
-        <div class="m-history-body" id="mHistoryList"></div>
-        <div class="m-history-footer">
-          <button type="button" class="m-btn m-btn-sm" id="mBtnExportHistory"><i data-lucide="download"></i> Exportar</button>
-          <button type="button" class="m-btn m-btn-sm m-btn-danger" id="mBtnClearHistory"><i data-lucide="trash-2"></i> Limpar</button>
-          <button type="button" class="m-btn m-btn-sm m-btn-primary" id="mBtnLoadHistory"><i data-lucide="arrow-up-right"></i> Carregar</button>
-        </div>
-      </div>
     </div>
 
     <!-- ÁREA DE CONTEÚDO COM AS 4 ABAS -->
@@ -203,10 +189,68 @@
       </section>
 
       <!-- ====================================================================
-           ABA 2: CONECTAR
+           ABA 2: AMIGOS / CONEXÕES
            ==================================================================== -->
       <section class="tab-view" id="view-connect">
         <div class="tab-scroll-body">
+
+          <!-- CARD: CONEXÃO ATIVA / DESCONECTAR -->
+          <div class="m-card hidden" id="mActiveSessionCard">
+            <div class="m-session-row">
+              <div class="m-avatar" id="mActivePartnerAvatar">?</div>
+              <div style="flex:1">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <strong id="mActivePartnerName">Amigo</strong>
+                  <span class="m-status-dot dot-online" style="position:static; display:inline-block;"></span>
+                </div>
+                <small id="mActivePartnerId" style="display:block; font-family:monospace; color:var(--text-dim)">ID: --</small>
+              </div>
+              <button class="m-btn m-btn-sm m-btn-danger" id="mDisconnectBtn">
+                <i data-lucide="power"></i> Desconectar
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD: AMIGOS / CONTACTOS GUARDADOS (DESTAQUE NO TOPO) -->
+          <div class="m-card" id="mContactsCard">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h4 class="m-card-title" style="margin:0;"><i data-lucide="users"></i> Meus Amigos</h4>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" id="mBackupContactsBtn" title="Backup / Guardar e Recuperar amigos" style="background:rgba(2, 132, 199, 0.1); border:1px solid rgba(2, 132, 199, 0.2); color:var(--primary); font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                  <i data-lucide="folder-sync" style="width:13px; height:13px;"></i> Backup
+                </button>
+                <span id="mContactsCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 amigos</span>
+              </div>
+            </div>
+
+            <!-- BOTÃO PRINCIPAL DE ADICIONAR OUTRO AMIGO -->
+            <button type="button" class="m-btn m-btn-primary m-btn-full" id="mOpenAddFriendModalBtn" style="margin-bottom:12px; padding:12px; font-weight:700; font-size:0.88rem; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(2, 132, 199, 0.25);">
+              <i data-lucide="user-plus"></i> + Adicionar Outro Amigo
+            </button>
+
+            <!-- LISTA DE AMIGOS -->
+            <div id="mContactsList" style="display:flex; flex-direction:column; gap:8px;">
+              <!-- Contactos gerados dinamicamente -->
+            </div>
+          </div>
+
+          <!-- CARD: CONEXÃO DIRETA POR ID / LINK -->
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="link"></i> Conectar Rápido</h4>
+            <p class="m-card-desc">Cole o ID ou link recebido do amigo:</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <input type="text" id="mRemotePeerInput" placeholder="Ex: victor-pc ou link..." style="width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); font-size:0.88rem; outline:none;">
+              <div style="display:flex; gap:8px;">
+                <button class="m-btn m-btn-primary" id="mConnectRemoteBtn" style="flex:1; justify-content:center; padding:10px;">
+                  <i data-lucide="zap"></i> Conectar
+                </button>
+                <button type="button" class="m-btn m-btn-secondary" id="mAddFriendBtn" title="Guardar na lista de amigos" style="flex:1; justify-content:center; padding:10px; font-weight:600;">
+                  <i data-lucide="user-plus"></i> Guardar Amigo
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- CARD: MEU PERFIL E MEU ID -->
           <div class="m-card">
             <div class="m-card-header">
@@ -230,7 +274,7 @@
             </div>
 
             <!-- BOTÃO NATIVO DE PARTILHAR (WHATSAPP, TELEGRAM, ETC) -->
-            <button class="m-btn m-btn-primary m-btn-full" id="mShareNativeBtn">
+            <button class="m-btn m-btn-secondary m-btn-full" id="mShareNativeBtn" style="margin-top:6px;">
               <i data-lucide="share-2"></i> Partilhar no WhatsApp / Mensagem
             </button>
           </div>
@@ -238,56 +282,12 @@
           <!-- CARD: CÓDIGO QR PARA LER COM OUTRO TELEMÓVEL -->
           <div class="m-card text-center">
             <h4 class="m-card-title"><i data-lucide="qr-code"></i> Código QR de Convite</h4>
-            <p class="m-card-desc">Mostre este QR code ao seu amigo para ele se conectar instantaneamente pela câmara:</p>
+            <p class="m-card-desc">Mostre este QR code para um amigo ler com a câmara:</p>
             <div class="m-qr-container">
               <div id="mQrcodeBox"></div>
             </div>
           </div>
 
-          <!-- CARD: LIGAR AO AMIGO -->
-          <div class="m-card">
-            <h4 class="m-card-title"><i data-lucide="link"></i> Conectar ao Amigo</h4>
-            <p class="m-card-desc">Cole o ID ou link que o seu amigo lhe enviou:</p>
-            <div class="m-connect-input-group">
-              <input type="text" id="mRemotePeerInput" placeholder="Cole o ID do amigo aqui...">
-              <button class="m-btn m-btn-primary" id="mConnectRemoteBtn">
-                <i data-lucide="zap"></i> Conectar
-              </button>
-              <button type="button" class="m-btn" id="mAddFriendBtn" title="Guardar Amigo" style="background:var(--bg-surface-subtle); border:1px solid var(--border-color); color:var(--text-main); padding:0 12px; font-weight:600; font-size:0.8rem; display:flex; align-items:center; gap:4px;">
-                <i data-lucide="user-plus"></i> Guardar
-              </button>
-            </div>
-          </div>
-
-          <!-- CARD: CONEXÃO ATIVA / DESCONECTAR -->
-          <div class="m-card hidden" id="mActiveSessionCard">
-            <div class="m-session-row">
-              <div class="m-avatar" id="mActivePartnerAvatar">?</div>
-              <div style="flex:1">
-                <strong id="mActivePartnerName">Amigo</strong>
-                <small id="mActivePartnerId" style="display:block; font-family:monospace; color:var(--text-dim)">ID: --</small>
-              </div>
-              <button class="m-btn m-btn-sm m-btn-danger" id="mDisconnectBtn">
-                <i data-lucide="power"></i> Desconectar
-              </button>
-            </div>
-          </div>
-
-          <!-- CARD: AMIGOS / CONTACTOS GUARDADOS -->
-          <div class="m-card" id="mContactsCard">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h4 class="m-card-title"><i data-lucide="users"></i> Meus Amigos</h4>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <button type="button" id="mBackupContactsBtn" title="Backup / Guardar e Recuperar amigos" style="background:rgba(2, 132, 199, 0.1); border:1px solid rgba(2, 132, 199, 0.2); color:var(--primary); font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                  <i data-lucide="folder-sync" style="width:13px; height:13px;"></i> Backup
-                </button>
-                <span id="mContactsCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 contactos</span>
-              </div>
-            </div>
-            <div id="mContactsList" style="display:flex; flex-direction:column; gap:8px;">
-              <!-- Contactos gerados dinamicamente -->
-            </div>
-          </div>
         </div>
       </section>
 
@@ -459,9 +459,9 @@
 
       <button class="nav-tab" data-target="view-connect">
         <div class="nav-icon-wrap">
-          <i data-lucide="link-2"></i>
+          <i data-lucide="users"></i>
         </div>
-        <span>Conectar</span>
+        <span>Amigos</span>
       </button>
 
       <button class="nav-tab" data-target="view-call">
@@ -579,6 +579,111 @@
         <button type="button" class="m-btn m-btn-primary" id="mBtnLoadHistory" style="padding:6px 12px; font-size:0.75rem; margin-left:auto;">
           <i data-lucide="arrow-up-right"></i> Ver no Chat
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADICIONAR NOVO AMIGO (MOBILE) -->
+  <div class="m-history-overlay hidden" id="mAddFriendModal">
+    <div class="m-history-box" style="height:auto; max-height:92vh;">
+      <div class="m-history-header">
+        <div class="m-history-title">
+          <i data-lucide="user-plus" style="color:var(--primary); width:20px; height:20px;"></i>
+          <span>Adicionar Novo Amigo</span>
+        </div>
+        <button type="button" class="m-icon-btn" id="mCloseAddFriendModalBtn" title="Fechar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div style="padding:16px; display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
+        <p style="font-size:0.82rem; color:var(--text-muted); margin:0; line-height:1.4;">
+          Insira o <strong>ID permanente</strong> ou o <strong>link de convite</strong> do seu amigo para guardar na sua lista de contactos:
+        </p>
+
+        <div>
+          <label style="display:block; font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--text-main);">
+            ID ou Link do Amigo:
+          </label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="mModalFriendIdInput" placeholder="Ex: victor-pc ou link..." style="flex:1; padding:10px 12px; font-size:0.88rem; border-radius:var(--radius-sm); border:1px solid var(--border-color); background:var(--bg-surface-subtle); color:var(--text-main); outline:none;">
+            <button type="button" class="m-btn m-btn-secondary" id="mBtnPasteFriendId" title="Colar da Área de Transferência" style="padding:0 12px; font-size:0.78rem; font-weight:600; white-space:nowrap; display:flex; align-items:center; gap:4px;">
+              <i data-lucide="clipboard" style="width:14px; height:14px;"></i> Colar
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:0.8rem; font-weight:700; margin-bottom:6px; color:var(--text-main);">
+            Nome do Amigo (opcional):
+          </label>
+          <input type="text" id="mModalFriendNameInput" placeholder="Ex: Maria, Carlos, Pedro..." style="width:100%; padding:10px 12px; font-size:0.88rem; border-radius:var(--radius-sm); border:1px solid var(--border-color); background:var(--bg-surface-subtle); color:var(--text-main); outline:none;">
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+          <button type="button" class="m-btn m-btn-primary m-btn-full" id="mBtnSaveAndConnectFriend" style="padding:12px; font-weight:700; font-size:0.88rem; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(2, 132, 199, 0.25);">
+            <i data-lucide="zap"></i> Guardar e Conectar Agora
+          </button>
+          <button type="button" class="m-btn m-btn-secondary m-btn-full" id="mBtnSaveFriendOnly" style="padding:10px; font-size:0.82rem; font-weight:600; justify-content:center; gap:6px;">
+            <i data-lucide="user-check"></i> Só Guardar na Lista de Amigos
+          </button>
+        </div>
+      </div>
+    </div>
+  <!-- MODAL: BACKUP DE AMIGOS (.JSON) (MOBILE) -->
+  <div class="m-history-overlay hidden" id="mBackupModal">
+    <div class="m-history-box" style="height:auto; max-height:92vh;">
+      <div class="m-history-header">
+        <div class="m-history-title">
+          <i data-lucide="folder-sync" style="color:var(--primary); width:20px; height:20px;"></i>
+          <span>Backup de Amigos (.JSON)</span>
+        </div>
+        <button type="button" class="m-icon-btn" id="mCloseBackupModalBtn" title="Fechar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div style="padding:16px; display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
+        <p style="font-size:0.82rem; color:var(--text-muted); margin:0; line-height:1.4;">
+          Guarde os seus amigos num ficheiro <strong>.json</strong> para nunca os perder. Para restaurar, basta carregar o ficheiro guardado:
+        </p>
+
+        <!-- BOTÃO DESCARREGAR FICHEIRO JSON -->
+        <button type="button" class="m-btn m-btn-primary m-btn-full" id="mBtnDownloadJsonBackup" style="padding:12px; font-weight:700; font-size:0.88rem; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(2, 132, 199, 0.25);">
+          <i data-lucide="file-down"></i> Guardar Ficheiro JSON
+        </button>
+
+        <!-- INPUT DE FICHEIRO ESCONDIDO MOBILE -->
+        <input type="file" id="mContactsJsonFileInput" accept=".json,application/json" style="display:none;">
+
+        <!-- BOTÃO CARREGAR FICHEIRO JSON -->
+        <button type="button" class="m-btn m-btn-secondary m-btn-full" id="mBtnUploadJsonBackup" style="padding:12px; font-weight:700; font-size:0.88rem; justify-content:center; gap:8px; border:2px dashed rgba(16, 185, 129, 0.4); background:rgba(16, 185, 129, 0.06); color:#059669;">
+          <i data-lucide="file-up"></i> Carregar Ficheiro JSON
+        </button>
+
+        <!-- OPÇÃO BACKUP AUTOMÁTICO -->
+        <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:flex-start; gap:8px;">
+          <input type="checkbox" id="mChkAutoDownloadBackup" style="margin-top:3px; cursor:pointer; width:16px; height:16px; accent-color:var(--primary);">
+          <label for="mChkAutoDownloadBackup" style="font-size:0.78rem; color:var(--text-main); cursor:pointer; line-height:1.35;">
+            <strong>Backup Automático:</strong> Descarregar ficheiro .json automaticamente sempre que adicionar ou alterar amigos.
+          </label>
+        </div>
+
+        <!-- OPÇÃO MANUAL COPIAR / COLAR CÓDIGO -->
+        <details style="font-size:0.8rem; color:var(--text-muted);">
+          <summary style="cursor:pointer; font-weight:600; padding:4px 0; user-select:none;">Opções manuais (código texto)</summary>
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+            <textarea id="mBackupDataTextarea" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem; padding:8px; border-radius:var(--radius-sm); border:1px solid var(--border-color); background:var(--bg-surface-subtle); color:var(--text-main); resize:none;" placeholder="Cole aqui o código JSON para restaurar..."></textarea>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="m-btn m-btn-secondary" id="mBtnCopyCode" style="flex:1; justify-content:center; padding:8px; font-size:0.78rem;">
+                <i data-lucide="copy"></i> Copiar Código
+              </button>
+              <button type="button" class="m-btn m-btn-primary" id="mBtnRestoreCode" style="flex:1; justify-content:center; padding:8px; font-size:0.78rem;">
+                <i data-lucide="check"></i> Restaurar Código
+              </button>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>

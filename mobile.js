@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     mThemeIcon: document.getElementById('mThemeIcon'),
     mFloatLeaveBtn: document.getElementById('mFloatLeaveBtn'),
 
-    // Top Bar Search & More Options
+    // Top Bar Actions & More Options
+    mHeaderAddFriendBtn: document.getElementById('mHeaderAddFriendBtn'),
     mHistoryBtn: document.getElementById('mHistoryBtn'),
     mSearchBtn: document.getElementById('mSearchBtn'),
     mMoreBtn: document.getElementById('mMoreBtn'),
@@ -42,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
     mSearchNextBtn: document.getElementById('mSearchNextBtn'),
     mSearchCloseBtn: document.getElementById('mSearchCloseBtn'),
     mMoreDropdown: document.getElementById('mMoreDropdown'),
+    mOptAddFriend: document.getElementById('mOptAddFriend'),
+    mOptMyFriends: document.getElementById('mOptMyFriends'),
     mOptHistory: document.getElementById('mOptHistory'),
     mOptExportChat: document.getElementById('mOptExportChat'),
     mOptToggleSound: document.getElementById('mOptToggleSound'),
@@ -49,6 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
     mOptSoundText: document.getElementById('mOptSoundText'),
     mOptClearChat: document.getElementById('mOptClearChat'),
     mOptDisconnect: document.getElementById('mOptDisconnect'),
+
+    // Mobile Add Friend Modal
+    mOpenAddFriendModalBtn: document.getElementById('mOpenAddFriendModalBtn'),
+    mAddFriendModal: document.getElementById('mAddFriendModal'),
+    mCloseAddFriendModalBtn: document.getElementById('mCloseAddFriendModalBtn'),
+    mModalFriendIdInput: document.getElementById('mModalFriendIdInput'),
+    mModalFriendNameInput: document.getElementById('mModalFriendNameInput'),
+    mBtnPasteFriendId: document.getElementById('mBtnPasteFriendId'),
+    mBtnSaveFriendOnly: document.getElementById('mBtnSaveFriendOnly'),
+    mBtnSaveAndConnectFriend: document.getElementById('mBtnSaveAndConnectFriend'),
 
     // Mobile History Modal
     mHistoryOverlay: document.getElementById('mHistoryOverlay'),
@@ -110,6 +123,15 @@ document.addEventListener('DOMContentLoaded', () => {
     mContactsCountBadge: document.getElementById('mContactsCountBadge'),
     mContactsList: document.getElementById('mContactsList'),
     mBackupContactsBtn: document.getElementById('mBackupContactsBtn'),
+    mBackupModal: document.getElementById('mBackupModal'),
+    mCloseBackupModalBtn: document.getElementById('mCloseBackupModalBtn'),
+    mBtnDownloadJsonBackup: document.getElementById('mBtnDownloadJsonBackup'),
+    mContactsJsonFileInput: document.getElementById('mContactsJsonFileInput'),
+    mBtnUploadJsonBackup: document.getElementById('mBtnUploadJsonBackup'),
+    mChkAutoDownloadBackup: document.getElementById('mChkAutoDownloadBackup'),
+    mBackupDataTextarea: document.getElementById('mBackupDataTextarea'),
+    mBtnCopyCode: document.getElementById('mBtnCopyCode'),
+    mBtnRestoreCode: document.getElementById('mBtnRestoreCode'),
 
     // Call View
     mCallPartnerName: document.getElementById('mCallPartnerName'),
@@ -393,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('nexus_contacts', json);
     localStorage.setItem('nexus_contacts_backup', json);
     try { sessionStorage.setItem('nexus_contacts_backup', json); } catch (e) {}
+    autoSyncBackup(list);
   }
 
   function removeStoredContact(peerId) {
@@ -401,15 +424,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const json = JSON.stringify(list);
     localStorage.setItem('nexus_contacts', json);
     localStorage.setItem('nexus_contacts_backup', json);
+    autoSyncBackup(list);
+  }
+
+  // Mapa de presença de amigos em tempo real: peerId -> { online: boolean, lastSeen: number }
+  const onlineFriendsMap = new Map();
+
+  function isContactOnline(peerId) {
+    if (!peerId) return false;
+    if (isConnected && client && client.remotePeerId === peerId) return true;
+    const item = onlineFriendsMap.get(peerId);
+    return !!(item && item.online);
   }
 
   function renderMobileContacts() {
     if (!elements.mContactsList) return;
     const contacts = getStoredContacts();
     const activeId = isConnected && client.remotePeerId ? client.remotePeerId : null;
+    const onlineCount = contacts.filter(c => isContactOnline(c.id)).length;
 
     if (elements.mContactsCountBadge) {
-      elements.mContactsCountBadge.textContent = `${contacts.length} ${contacts.length === 1 ? 'amigo' : 'amigos'}`;
+      elements.mContactsCountBadge.textContent = `${onlineCount} online • ${contacts.length} ${contacts.length === 1 ? 'amigo' : 'amigos'}`;
     }
 
     if (contacts.length === 0) {
@@ -425,10 +460,11 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.mContactsList.innerHTML = '';
 
     contacts.forEach(contact => {
-      const isOnline = activeId === contact.id;
+      const isOnline = isContactOnline(contact.id);
+      const isCurrentChat = activeId === contact.id;
 
       const item = document.createElement('div');
-      item.className = `m-contact-item ${isOnline ? 'active' : ''}`;
+      item.className = `m-contact-item ${isCurrentChat ? 'active' : ''}`;
 
       const avatarHtml = contact.avatar
         ? `<img src="${contact.avatar}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
@@ -437,13 +473,13 @@ document.addEventListener('DOMContentLoaded', () => {
       item.innerHTML = `
         <div style="position:relative; width:38px; height:38px; flex-shrink:0;">
           <div class="m-avatar" style="width:38px; height:38px; font-size:0.85rem;">${avatarHtml}</div>
-          <span class="m-status-dot ${isOnline ? 'dot-online' : 'dot-offline'}" title="${isOnline ? 'Online' : 'Offline'}"></span>
+          <span class="m-status-dot ${isOnline ? 'dot-online' : 'dot-offline'}" title="${isOnline ? (isCurrentChat ? 'Online • Conectado' : 'Online • Disponível') : 'Offline'}"></span>
         </div>
         <div class="m-contact-info">
           <strong class="m-contact-name">${escapeHtml(contact.name || 'Amigo')}</strong>
           <div class="m-contact-sub">
             <span class="m-dot-tiny ${isOnline ? 'online' : 'offline'}"></span>
-            <span>${isOnline ? 'Online • conectado' : 'Offline'}</span>
+            <span>${isOnline ? (isCurrentChat ? 'Online • conectado' : 'Online') : 'Offline'}</span>
             <span style="opacity:0.5; font-family:monospace;">• ${escapeHtml(contact.id)}</span>
           </div>
         </div>
@@ -459,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       item.addEventListener('click', (e) => {
         if (e.target.closest('.m-btn-remove-contact') || e.target.closest('.m-btn-edit-contact')) return;
-        if (isOnline) {
+        if (isCurrentChat) {
           switchTab('view-chat');
           return;
         }
@@ -477,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (newName && newName.trim()) {
             saveStoredContact(contact.id, newName.trim(), contact.avatar);
             renderMobileContacts();
+            syncFriendsPresence();
             showToast('Nome atualizado!');
           }
         });
@@ -488,6 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
           e.stopPropagation();
           if (confirm(`Remover "${contact.name}" dos seus amigos guardados?`)) {
             removeStoredContact(contact.id);
+            onlineFriendsMap.delete(contact.id);
             renderMobileContacts();
             showToast('Amigo removido.');
           }
@@ -500,42 +538,290 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.lucide) window.lucide.createIcons();
   }
 
-  // Backup / Exportar e Importar Amigos (Mobile)
+  let isSyncingPresence = false;
+  async function syncFriendsPresence() {
+    if (isSyncingPresence) return;
+    isSyncingPresence = true;
+    try {
+      const contacts = getStoredContacts();
+      const myId = savedMobileId || (client && client.myPeerId);
+      let serverAssisted = false;
+
+      // 1. Endpoint do servidor local / túnel Cloudflare
+      try {
+        const queryParams = new URLSearchParams({
+          id: myId || '',
+          name: savedNick || (client && client.myNickname) || '',
+          avatar: (savedAvatar && savedAvatar.length < 300) ? savedAvatar : ''
+        });
+        const res = await fetch(`/api/presence?${queryParams.toString()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.onlineIds)) {
+            serverAssisted = true;
+            const onlineSet = new Set(data.onlineIds);
+            contacts.forEach(c => {
+              if (isConnected && client && client.remotePeerId === c.id) {
+                onlineFriendsMap.set(c.id, { online: true, lastSeen: Date.now() });
+              } else {
+                const nowOnline = onlineSet.has(c.id);
+                onlineFriendsMap.set(c.id, { online: nowOnline, lastSeen: Date.now() });
+              }
+            });
+            renderMobileContacts();
+          }
+        }
+      } catch (e) {
+        // Servidor local não respondeu (ex: GitHub Pages estático)
+      }
+
+      // 2. Sondagem WebRTC P2P (PeerJS) fallback
+      if (client && client.peer && !client.peer.destroyed && contacts.length > 0) {
+        for (const contact of contacts) {
+          if (isConnected && client.remotePeerId === contact.id) {
+            onlineFriendsMap.set(contact.id, { online: true, lastSeen: Date.now() });
+            continue;
+          }
+          if (serverAssisted && onlineFriendsMap.get(contact.id)?.online) {
+            continue;
+          }
+
+          client.checkPeerPresence(contact.id).then(isOnline => {
+            onlineFriendsMap.set(contact.id, { online: isOnline, lastSeen: Date.now() });
+            renderMobileContacts();
+          }).catch(() => {});
+
+          await new Promise(r => setTimeout(r, 600));
+        }
+      }
+    } finally {
+      isSyncingPresence = false;
+    }
+  }
+
+  // =========================================================================
+  // SISTEMA DE BACKUP AUTOMÁTICO E RESTAURAÇÃO (.JSON) - MOBILE
+  // =========================================================================
+  let mobileDownloadDebounceTimer = null;
+  function debouncedMobileDownloadJsonBackup() {
+    if (mobileDownloadDebounceTimer) clearTimeout(mobileDownloadDebounceTimer);
+    mobileDownloadDebounceTimer = setTimeout(() => {
+      downloadMobileContactsJsonFile(true);
+    }, 1500);
+  }
+
+  function autoSyncBackup(customList = null) {
+    const list = customList || getStoredContacts();
+    const payload = {
+      app: 'nexus-p2p-chat',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      myId: savedMobileId || (client && client.myPeerId) || null,
+      totalContacts: list.length,
+      contacts: list
+    };
+
+    // 1. Guardar automaticamente no disco via servidor local (se ativo)
+    try {
+      fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(() => {});
+    } catch (e) {}
+
+    // 2. Se o utilizador ativou descarregar automaticamente ficheiro .json
+    if (localStorage.getItem('nexus_auto_download_json') === 'true' && list.length > 0) {
+      debouncedMobileDownloadJsonBackup();
+    }
+  }
+
+  function downloadMobileContactsJsonFile(isAuto = false) {
+    const contacts = getStoredContacts();
+    if (contacts.length === 0 && !isAuto) {
+      return showToast('Ainda não tem amigos guardados para exportar.');
+    }
+    const payload = {
+      app: 'nexus-p2p-chat',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      myId: savedMobileId || (client && client.myPeerId) || null,
+      totalContacts: contacts.length,
+      contacts: contacts
+    };
+    const jsonStr = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexus-amigos-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 400);
+
+    if (isAuto) {
+      showToast('Backup automático guardado em ficheiro JSON!');
+    } else {
+      showToast('Ficheiro JSON descarregado com sucesso!');
+    }
+  }
+
+  function handleMobileRestoreFromJson(data, sourceName = 'ficheiro') {
+    if (!data) return showToast('Ficheiro vazio ou inválido.');
+
+    let list = null;
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (data && Array.isArray(data.contacts)) {
+      list = data.contacts;
+    }
+
+    if (!list || list.length === 0) {
+      return showToast('O ficheiro não contém amigos guardados.');
+    }
+
+    const current = getStoredContacts();
+    let restoredCount = 0;
+
+    list.forEach(item => {
+      const cleanId = cleanPeerId(item.id);
+      if (cleanId && cleanId !== savedMobileId) {
+        const idx = current.findIndex(c => c.id === cleanId);
+        const contactObj = {
+          id: cleanId,
+          name: item.name || cleanId,
+          avatar: item.avatar || null,
+          lastSeen: item.lastSeen || Date.now()
+        };
+        if (idx >= 0) {
+          current[idx] = { ...current[idx], ...contactObj };
+        } else {
+          current.unshift(contactObj);
+        }
+        restoredCount++;
+      }
+    });
+
+    const fullJson = JSON.stringify(current);
+    localStorage.setItem('nexus_contacts', fullJson);
+    localStorage.setItem('nexus_contacts_backup', fullJson);
+
+    renderMobileContacts();
+    syncFriendsPresence();
+    autoSyncBackup(current);
+
+    if (elements.mBackupModal) elements.mBackupModal.classList.add('hidden');
+    showToast(`✅ ${restoredCount} amigo(s) restaurados com sucesso a partir de ${sourceName}!`);
+  }
+
+  function processMobileJsonFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.json') && file.type !== 'application/json') {
+      return showToast('Por favor selecione um ficheiro .json válido.');
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target.result);
+        handleMobileRestoreFromJson(parsed, file.name);
+      } catch (err) {
+        showToast('Erro: o ficheiro não contém JSON válido.');
+      }
+    };
+    reader.onerror = () => showToast('Erro ao ler o ficheiro.');
+    reader.readAsText(file);
+  }
+
+  // Abrir Modal de Backup Mobile
   if (elements.mBackupContactsBtn) {
     elements.mBackupContactsBtn.addEventListener('click', () => {
       const contacts = getStoredContacts();
-      const choice = prompt('Backup de Amigos:\n1. Digite "E" para EXPORTAR (copiar código dos seus amigos)\n2. Digite "I" para IMPORTAR (restaurar amigos por código)', 'E');
-      if (!choice) return;
-      if (choice.toUpperCase() === 'E') {
-        if (contacts.length === 0) return showToast('Ainda não tem amigos na lista para exportar.');
-        const json = JSON.stringify(contacts);
-        navigator.clipboard.writeText(json);
-        showToast('Código de backup copiado! Guarde nas suas notas.');
-      } else if (choice.toUpperCase() === 'I') {
-        const input = prompt('Cole aqui o código de backup dos amigos:');
-        if (!input) return;
-        try {
-          const list = JSON.parse(input.trim());
-          if (Array.isArray(list) && list.length > 0) {
-            const current = getStoredContacts();
-            let count = 0;
-            list.forEach(item => {
-              if (item.id && !current.some(c => c.id === item.id)) {
-                current.push(item);
-                count++;
-              }
-            });
-            const fullJson = JSON.stringify(current);
-            localStorage.setItem('nexus_contacts', fullJson);
-            localStorage.setItem('nexus_contacts_backup', fullJson);
-            renderMobileContacts();
-            showToast(`${list.length} amigo(s) restaurado(s) com sucesso!`);
-          } else {
-            showToast('Nenhum amigo encontrado no código.');
-          }
-        } catch (e) {
-          showToast('Código de backup inválido.');
-        }
+      if (elements.mBackupDataTextarea) {
+        elements.mBackupDataTextarea.value = contacts.length > 0 ? JSON.stringify(contacts, null, 2) : '';
+      }
+      if (elements.mChkAutoDownloadBackup) {
+        elements.mChkAutoDownloadBackup.checked = localStorage.getItem('nexus_auto_download_json') === 'true';
+      }
+      elements.mBackupModal?.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    });
+  }
+
+  if (elements.mCloseBackupModalBtn) {
+    elements.mCloseBackupModalBtn.addEventListener('click', () => {
+      elements.mBackupModal?.classList.add('hidden');
+    });
+  }
+
+  if (elements.mBackupModal) {
+    elements.mBackupModal.addEventListener('click', (e) => {
+      if (e.target === elements.mBackupModal) {
+        elements.mBackupModal.classList.add('hidden');
+      }
+    });
+  }
+
+  // Botão Descarregar JSON no Telemóvel
+  if (elements.mBtnDownloadJsonBackup) {
+    elements.mBtnDownloadJsonBackup.addEventListener('click', () => {
+      downloadMobileContactsJsonFile(false);
+    });
+  }
+
+  // Botão Carregar Ficheiro JSON no Telemóvel
+  if (elements.mBtnUploadJsonBackup && elements.mContactsJsonFileInput) {
+    elements.mBtnUploadJsonBackup.addEventListener('click', () => {
+      elements.mContactsJsonFileInput.click();
+    });
+  }
+
+  if (elements.mContactsJsonFileInput) {
+    elements.mContactsJsonFileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        processMobileJsonFile(file);
+        elements.mContactsJsonFileInput.value = '';
+      }
+    });
+  }
+
+  // Toggle Backup Automático Mobile
+  if (elements.mChkAutoDownloadBackup) {
+    elements.mChkAutoDownloadBackup.addEventListener('change', (e) => {
+      localStorage.setItem('nexus_auto_download_json', e.target.checked ? 'true' : 'false');
+      if (e.target.checked) {
+        showToast('Backup automático ativado!');
+        downloadMobileContactsJsonFile(true);
+      } else {
+        showToast('Backup automático desativado.');
+      }
+    });
+  }
+
+  // Opções manuais de código texto
+  if (elements.mBtnCopyCode) {
+    elements.mBtnCopyCode.addEventListener('click', () => {
+      const contacts = getStoredContacts();
+      if (contacts.length === 0) return showToast('Ainda não tem amigos guardados.');
+      const json = JSON.stringify(contacts, null, 2);
+      navigator.clipboard.writeText(json);
+      if (elements.mBackupDataTextarea) elements.mBackupDataTextarea.value = json;
+      showToast('Código copiado para a área de transferência!');
+    });
+  }
+
+  if (elements.mBtnRestoreCode) {
+    elements.mBtnRestoreCode.addEventListener('click', () => {
+      const text = elements.mBackupDataTextarea?.value.trim();
+      if (!text) return showToast('Cole o código de backup no campo de texto.');
+      try {
+        const parsed = JSON.parse(text);
+        handleMobileRestoreFromJson(parsed, 'código inserido');
+      } catch (e) {
+        showToast('Código de backup inválido.');
       }
     });
   }
@@ -852,10 +1138,27 @@ document.addEventListener('DOMContentLoaded', () => {
     updateMobileProfileUI();
     updateMobileShare(id);
     checkUrlHashForConnection();
+    syncFriendsPresence();
+  };
+
+  client.onFriendPresence = (peerId, isOnline, meta) => {
+    onlineFriendsMap.set(peerId, {
+      online: isOnline,
+      lastSeen: Date.now()
+    });
+    if (isOnline && meta && (meta.nickname || meta.avatar)) {
+      const contacts = getStoredContacts();
+      const existing = contacts.find(c => c.id === peerId);
+      if (existing && (!existing.name || existing.name === existing.id || existing.name === 'Amigo')) {
+        saveStoredContact(peerId, meta.nickname || existing.name, meta.avatar || existing.avatar);
+      }
+    }
+    renderMobileContacts();
   };
 
   client.onConnected = (remoteId) => {
     isConnected = true;
+    onlineFriendsMap.set(remoteId, { online: true, lastSeen: Date.now() });
     showToast('Conectado em P2P!');
 
     const partnerName = client.remoteNickname || 'Amigo';
@@ -916,6 +1219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Par desconectado.');
 
     renderMobileContacts();
+    syncFriendsPresence();
 
     elements.mHeaderDot.className = 'm-status-dot dot-offline';
     elements.mHeaderTitle.textContent = 'Nexus P2P';
@@ -1007,6 +1311,13 @@ document.addEventListener('DOMContentLoaded', () => {
   updateMobileProfileUI();
   renderMobileContacts();
 
+  // Monitorização periódica de presença para amigos (a cada 12 segundos)
+  setInterval(syncFriendsPresence, 12000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncFriendsPresence();
+  });
+  setTimeout(syncFriendsPresence, 1500);
+
   // =========================================================================
   // CONEXÃO POR ID E DESCONEXÃO
   // =========================================================================
@@ -1015,22 +1326,145 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') connectRemote();
   });
 
+  // =========================================================================
+  // MODAL DE ADICIONAR NOVO AMIGO (MOBILE)
+  // =========================================================================
+  function openAddFriendModal(prefillId = '') {
+    if (elements.mModalFriendIdInput) {
+      elements.mModalFriendIdInput.value = prefillId || '';
+    }
+    if (elements.mModalFriendNameInput) {
+      elements.mModalFriendNameInput.value = '';
+    }
+    elements.mAddFriendModal?.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+    setTimeout(() => {
+      if (elements.mModalFriendIdInput && !prefillId) {
+        elements.mModalFriendIdInput.focus();
+      }
+    }, 200);
+  }
+
+  function closeAddFriendModal() {
+    elements.mAddFriendModal?.classList.add('hidden');
+  }
+
+  if (elements.mHeaderAddFriendBtn) {
+    elements.mHeaderAddFriendBtn.addEventListener('click', () => openAddFriendModal());
+  }
+
+  if (elements.mOptAddFriend) {
+    elements.mOptAddFriend.addEventListener('click', () => {
+      elements.mMoreDropdown?.classList.add('hidden');
+      openAddFriendModal();
+    });
+  }
+
+  if (elements.mOptMyFriends) {
+    elements.mOptMyFriends.addEventListener('click', () => {
+      elements.mMoreDropdown?.classList.add('hidden');
+      switchTab('view-connect');
+    });
+  }
+
+  if (elements.mOpenAddFriendModalBtn) {
+    elements.mOpenAddFriendModalBtn.addEventListener('click', () => openAddFriendModal());
+  }
+
+  if (elements.mCloseAddFriendModalBtn) {
+    elements.mCloseAddFriendModalBtn.addEventListener('click', closeAddFriendModal);
+  }
+
+  if (elements.mAddFriendModal) {
+    elements.mAddFriendModal.addEventListener('click', (e) => {
+      if (e.target === elements.mAddFriendModal) {
+        closeAddFriendModal();
+      }
+    });
+  }
+
+  // Fechar com tecla Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.mAddFriendModal && !elements.mAddFriendModal.classList.contains('hidden')) {
+      closeAddFriendModal();
+    }
+  });
+
+  // Colar da Área de Transferência
+  if (elements.mBtnPasteFriendId) {
+    elements.mBtnPasteFriendId.addEventListener('click', async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text && text.trim()) {
+            elements.mModalFriendIdInput.value = text.trim();
+            showToast('ID colado com sucesso!');
+            return;
+          }
+        }
+        showToast('Cole o ID manualmente no campo.');
+      } catch (e) {
+        const manual = prompt('Cole aqui o ID ou link do seu amigo:');
+        if (manual && manual.trim()) {
+          elements.mModalFriendIdInput.value = manual.trim();
+        }
+      }
+    });
+  }
+
+  // Apenas guardar nos amigos
+  if (elements.mBtnSaveFriendOnly) {
+    elements.mBtnSaveFriendOnly.addEventListener('click', () => {
+      const rawId = elements.mModalFriendIdInput?.value.trim();
+      const cleanId = cleanPeerId(rawId);
+      if (!cleanId) {
+        return showToast('Insira um ID ou link válido.');
+      }
+      if (cleanId === savedMobileId) {
+        return showToast('Não pode adicionar o seu próprio ID.');
+      }
+
+      const rawName = elements.mModalFriendNameInput?.value.trim();
+      const friendName = rawName || cleanId;
+
+      saveStoredContact(cleanId, friendName, null);
+      renderMobileContacts();
+      syncFriendsPresence();
+      closeAddFriendModal();
+      showToast(`Amigo "${friendName}" guardado na lista!`);
+    });
+  }
+
+  // Guardar e conectar imediatamente
+  if (elements.mBtnSaveAndConnectFriend) {
+    elements.mBtnSaveAndConnectFriend.addEventListener('click', () => {
+      const rawId = elements.mModalFriendIdInput?.value.trim();
+      const cleanId = cleanPeerId(rawId);
+      if (!cleanId) {
+        return showToast('Insira um ID ou link válido.');
+      }
+      if (cleanId === savedMobileId) {
+        return showToast('Não pode conectar ao seu próprio ID.');
+      }
+
+      const rawName = elements.mModalFriendNameInput?.value.trim();
+      const friendName = rawName || cleanId;
+
+      saveStoredContact(cleanId, friendName, null);
+      renderMobileContacts();
+      syncFriendsPresence();
+      closeAddFriendModal();
+
+      elements.mRemotePeerInput.value = cleanId;
+      showToast(`A conectar a "${friendName}"...`);
+      client.connect(cleanId);
+    });
+  }
+
   if (elements.mAddFriendBtn) {
     elements.mAddFriendBtn.addEventListener('click', () => {
       let target = cleanPeerId(elements.mRemotePeerInput.value);
-      if (!target) {
-        target = prompt('Insira o ID do amigo:');
-        if (!target) return;
-        target = cleanPeerId(target);
-      }
-      if (!target) return showToast('ID inválido.');
-      if (target === savedMobileId) return showToast('Não pode adicionar o seu próprio ID.');
-
-      const friendName = prompt(`Nome para este amigo (${target}):`, target) || target;
-      saveStoredContact(target, friendName.trim(), null);
-      renderMobileContacts();
-      elements.mRemotePeerInput.value = '';
-      showToast(`Amigo "${friendName}" guardado na lista!`);
+      openAddFriendModal(target || '');
     });
   }
 
@@ -1402,6 +1836,22 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.mCloseHistoryBtn.addEventListener('click', closeMobileHistoryModal);
   }
 
+  // Fechar ao clicar fora (no overlay escuro)
+  if (elements.mHistoryOverlay) {
+    elements.mHistoryOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.mHistoryOverlay) {
+        closeMobileHistoryModal();
+      }
+    });
+  }
+
+  // Fechar com a tecla Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.mHistoryOverlay && !elements.mHistoryOverlay.classList.contains('hidden')) {
+      closeMobileHistoryModal();
+    }
+  });
+
   function populateMobileHistoryContactSelect(selectedId) {
     if (!elements.mHistoryPartnerSelect) return;
     elements.mHistoryPartnerSelect.innerHTML = '';
@@ -1618,6 +2068,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Notificar o amigo IMEDIATAMENTE ao fechar a aba ou sair do navegador no telemóvel
   const handleMobileAppExit = () => {
+    const myId = savedMobileId || (client && client.myPeerId);
+    if (myId) {
+      try {
+        navigator.sendBeacon(`/api/presence?id=${encodeURIComponent(myId)}&status=offline`);
+      } catch (e) {}
+    }
     if (client) {
       client.disconnect(true);
     }

@@ -278,7 +278,8 @@ body {
 .top-bar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .m-latency-tag {
@@ -294,8 +295,8 @@ body {
 }
 
 .m-icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-sm);
   background: var(--bg-surface-subtle);
   border: 1px solid var(--border-color);
@@ -306,6 +307,11 @@ body {
   justify-content: center;
   text-decoration: none;
   transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+#mHeaderAddFriendBtn {
+  color: var(--primary);
 }
 
 .m-icon-btn:active {

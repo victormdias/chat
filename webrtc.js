@@ -43,6 +43,8 @@ class P2PClient {
     this.currentFacingMode = 'user';
     this.onRemoteVideoToggle = () => {};
     this.onNudgeReceived = () => {};
+    this.onFriendPresence = () => {};
+    this.probingPeers = new Map(); // peerId -> { promise, cleanup, startedAt }
     this.onError = () => {};
   }
 
@@ -94,6 +96,28 @@ class P2PClient {
 
       // Escutar conexões DataChannel recebidas
       this.peer.on('connection', (conn) => {
+        // Se for apenas uma sondagem rápida de presença online em segundo plano
+        if (conn.metadata && conn.metadata.type === 'presence_probe') {
+          const senderId = conn.metadata.senderId || conn.peer;
+          if (senderId && this.onFriendPresence) {
+            this.onFriendPresence(senderId, true, conn.metadata);
+          }
+          conn.on('open', () => {
+            try {
+              conn.send({
+                type: 'presence_pong',
+                senderId: this.myPeerId,
+                nickname: this.myNickname,
+                avatar: this.myAvatar
+              });
+            } catch (e) {}
+            setTimeout(() => {
+              try { conn.close(); } catch (e) {}
+            }, 300);
+          });
+          return; // Não inicializar como sessão de chat ativa!
+        }
+
         this.setupDataConnection(conn);
       });
 
@@ -104,6 +128,25 @@ class P2PClient {
       });
 
       this.peer.on('error', (err) => {
+        // Se o erro foi gerado por uma sondagem em background a um amigo offline, suprimir!
+        if (err && err.type === 'peer-unavailable') {
+          let handledProbe = false;
+          for (const [probedId, probeObj] of this.probingPeers.entries()) {
+            if (err.message && err.message.includes(probedId)) {
+              probeObj.cleanup(false);
+              handledProbe = true;
+              break;
+            }
+          }
+          if (!handledProbe && this.probingPeers.size > 0) {
+            for (const [probedId, probeObj] of this.probingPeers.entries()) {
+              probeObj.cleanup(false);
+            }
+            handledProbe = true;
+          }
+          if (handledProbe) return; // Não polui a UI com toasts de erro ao sondar amigos offline
+        }
+
         console.error('Erro PeerJS:', err);
         this.onError(err);
       });
@@ -152,6 +195,9 @@ class P2PClient {
 
       // Iniciar medição de latência periódica (Ping/Pong P2P)
       this.startPingLoop();
+      if (this.onFriendPresence) {
+        this.onFriendPresence(this.remotePeerId, true);
+      }
       this.onConnected(this.remotePeerId);
     });
 
@@ -160,8 +206,12 @@ class P2PClient {
     });
 
     conn.on('close', () => {
+      const closedPeerId = this.remotePeerId;
       this.stopPingLoop();
       this.dataConnection = null;
+      if (this.onFriendPresence && closedPeerId) {
+        this.onFriendPresence(closedPeerId, false);
+      }
       this.onDisconnected();
     });
 
@@ -169,6 +219,82 @@ class P2PClient {
       console.error('Erro DataConnection:', err);
       this.onError(err);
     });
+  }
+
+  /**
+   * Sonda se um amigo está online de forma silenciosa e não intrusiva via WebRTC/PeerJS
+   */
+  checkPeerPresence(targetPeerId) {
+    if (!this.peer || this.peer.destroyed || !targetPeerId) {
+      return Promise.resolve(false);
+    }
+    if (targetPeerId === this.myPeerId) {
+      return Promise.resolve(true);
+    }
+    if (this.dataConnection && this.dataConnection.open && this.remotePeerId === targetPeerId) {
+      return Promise.resolve(true);
+    }
+    if (this.probingPeers.has(targetPeerId)) {
+      return this.probingPeers.get(targetPeerId).promise;
+    }
+
+    let probeConn = null;
+    let timer = null;
+
+    const promise = new Promise((resolve) => {
+      let isDone = false;
+
+      const cleanup = (isOnline, meta = null) => {
+        if (isDone) return;
+        isDone = true;
+        if (timer) clearTimeout(timer);
+        this.probingPeers.delete(targetPeerId);
+
+        if (probeConn) {
+          try { probeConn.close(); } catch (e) {}
+        }
+
+        if (this.onFriendPresence) {
+          this.onFriendPresence(targetPeerId, isOnline, meta);
+        }
+        resolve(isOnline);
+      };
+
+      this.probingPeers.set(targetPeerId, {
+        promise,
+        cleanup,
+        startedAt: Date.now()
+      });
+
+      try {
+        probeConn = this.peer.connect(targetPeerId, {
+          metadata: { type: 'presence_probe', senderId: this.myPeerId },
+          reliable: false
+        });
+
+        probeConn.on('open', () => {
+          cleanup(true);
+        });
+
+        probeConn.on('data', (data) => {
+          if (data && data.type === 'presence_pong') {
+            cleanup(true, data);
+          }
+        });
+
+        probeConn.on('error', () => {
+          cleanup(false);
+        });
+
+        timer = setTimeout(() => {
+          cleanup(false);
+        }, 3500);
+      } catch (err) {
+        cleanup(false);
+      }
+    });
+
+    return promise;
   }
 
   /**
