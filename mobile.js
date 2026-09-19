@@ -493,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
 
-      item.addEventListener('click', (e) => {
+      item.addEventListener('click', async (e) => {
         if (e.target.closest('.m-btn-remove-contact') || e.target.closest('.m-btn-edit-contact')) return;
         if (isCurrentChat) {
           switchTab('view-chat');
@@ -502,7 +502,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.mRemotePeerInput.value = contact.id;
         showToast(`A ligar a ${contact.name}...`);
-        client.connect(contact.id);
+        try {
+          await client.connect(contact.id);
+        } catch (err) {
+          console.warn('Erro ao conectar via contacto:', err);
+        }
       });
 
       const editBtn = item.querySelector('.m-btn-edit-contact');
@@ -1314,7 +1318,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Monitorização periódica de presença para amigos (a cada 12 segundos)
   setInterval(syncFriendsPresence, 12000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) syncFriendsPresence();
+    if (!document.hidden) {
+      if (client) client.ensurePeerConnected().then(() => syncFriendsPresence());
+      else syncFriendsPresence();
+    }
+  });
+  window.addEventListener('pageshow', () => {
+    if (client) client.ensurePeerConnected().then(() => syncFriendsPresence());
+  });
+  window.addEventListener('online', () => {
+    if (client) client.ensurePeerConnected().then(() => syncFriendsPresence());
   });
   setTimeout(syncFriendsPresence, 1500);
 
@@ -1437,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Guardar e conectar imediatamente
   if (elements.mBtnSaveAndConnectFriend) {
-    elements.mBtnSaveAndConnectFriend.addEventListener('click', () => {
+    elements.mBtnSaveAndConnectFriend.addEventListener('click', async () => {
       const rawId = elements.mModalFriendIdInput?.value.trim();
       const cleanId = cleanPeerId(rawId);
       if (!cleanId) {
@@ -1457,7 +1470,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       elements.mRemotePeerInput.value = cleanId;
       showToast(`A conectar a "${friendName}"...`);
-      client.connect(cleanId);
+      try {
+        await client.connect(cleanId);
+      } catch (err) {
+        console.warn('Erro ao conectar amigo adicionado:', err);
+      }
     });
   }
 
@@ -1468,7 +1485,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function connectRemote() {
+  async function connectRemote() {
     let target = cleanPeerId(elements.mRemotePeerInput.value);
     if (!target) return showToast('Insira o ID do seu amigo.');
     if (target === savedMobileId) return showToast('Não pode conectar ao seu próprio ID.');
@@ -1478,7 +1495,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMobileContacts();
 
     showToast('Contacto guardado! A conectar...');
-    client.connect(target);
+    try {
+      await client.connect(target);
+    } catch (err) {
+      console.warn('Erro ao conectar remotamente:', err);
+    }
   }
 
   elements.mDisconnectBtn.addEventListener('click', () => {
@@ -2067,14 +2088,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Notificar o amigo IMEDIATAMENTE ao fechar a aba ou sair do navegador no telemóvel
-  const handleMobileAppExit = () => {
+  const handleMobileAppExit = (e) => {
+    if (e && e.persisted) return; // Não desconectar se o telemóvel apenas suspendeu o app em memória (bfcache)
     const myId = savedMobileId || (client && client.myPeerId);
     if (myId) {
       try {
         navigator.sendBeacon(`/api/presence?id=${encodeURIComponent(myId)}&status=offline`);
       } catch (e) {}
     }
-    if (client) {
+    if (client && isConnected) {
       client.disconnect(true);
     }
   };
@@ -2776,5 +2798,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  // =========================================================================
+  // SUPORTE PWA E INSTALAÇÃO NO TELEMÓVEL
+  // =========================================================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(err => {
+        console.log('Service Worker registo:', err);
+      });
+    });
+  }
+
+  let deferredMobileInstall = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredMobileInstall = e;
+    if (!sessionStorage.getItem('nexus_dismiss_install')) {
+      const banner = document.getElementById('mInstallAppBanner');
+      if (banner) banner.classList.remove('hidden');
+    }
+  });
+
+  function triggerMobileAppInstall() {
+    if (deferredMobileInstall) {
+      deferredMobileInstall.prompt();
+      deferredMobileInstall.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          showToast('A instalar Nexus P2P no seu ecrã...');
+          const banner = document.getElementById('mInstallAppBanner');
+          if (banner) banner.classList.add('hidden');
+        }
+        deferredMobileInstall = null;
+      });
+    } else {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        alert('📱 Para instalar no iPhone (Safari):\n\n1. Toque no botão de Partilha ⎋ (no fundo do Safari)\n2. Deslize e toque em "Adicionar ao ecrã principal" ➕\n3. Toque em "Adicionar" no topo.');
+      } else {
+        alert('📱 Para instalar no seu telemóvel:\n\n1. Toque nos 3 pontinhos (⋮) no topo do seu navegador (Chrome/Edge)\n2. Escolha "Instalar aplicação" ou "Adicionar ao ecrã principal"');
+      }
+    }
+  }
+
+  const triggerInstallBtn = document.getElementById('mBtnTriggerInstall');
+  if (triggerInstallBtn) {
+    triggerInstallBtn.addEventListener('click', triggerMobileAppInstall);
+  }
+  const dismissInstallBtn = document.getElementById('mBtnDismissInstall');
+  if (dismissInstallBtn) {
+    dismissInstallBtn.addEventListener('click', () => {
+      sessionStorage.setItem('nexus_dismiss_install', 'true');
+      const banner = document.getElementById('mInstallAppBanner');
+      if (banner) banner.classList.add('hidden');
+    });
+  }
+  const optInstallApp = document.getElementById('mOptInstallApp');
+  if (optInstallApp) {
+    optInstallApp.addEventListener('click', () => {
+      elements.mMoreDropdown?.classList.add('hidden');
+      triggerMobileAppInstall();
+    });
   }
 });

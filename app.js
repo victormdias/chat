@@ -684,13 +684,17 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
 
       // Clicar no amigo conecta automaticamente
-      card.addEventListener('click', (e) => {
+      card.addEventListener('click', async (e) => {
         if (e.target.closest('.btn-remove-contact') || e.target.closest('.btn-edit-contact')) return;
         if (isCurrentChat) return;
 
         elements.remotePeerIdInput.value = contact.id;
         showToast(`A ligar a ${contact.name}...`);
-        client.connect(contact.id);
+        try {
+          await client.connect(contact.id);
+        } catch (err) {
+          console.warn('Erro ao conectar via contacto:', err);
+        }
       });
 
       // Botão para renomear/mudar nome
@@ -1293,7 +1297,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Monitorização periódica de presença para amigos (a cada 12 segundos)
   setInterval(syncFriendsPresence, 12000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) syncFriendsPresence();
+    if (!document.hidden) {
+      if (client) client.ensurePeerConnected().then(() => syncFriendsPresence());
+      else syncFriendsPresence();
+    }
+  });
+  window.addEventListener('pageshow', () => {
+    if (client) client.ensurePeerConnected().then(() => syncFriendsPresence());
+  });
+  window.addEventListener('online', () => {
+    if (client) client.ensurePeerConnected().then(() => syncFriendsPresence());
   });
   setTimeout(syncFriendsPresence, 1500);
 
@@ -1313,14 +1326,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Notificar imediatamente o amigo ao fechar a janela ou mudar de página no computador
-  const handleDesktopExit = () => {
+  const handleDesktopExit = (e) => {
+    if (e && e.persisted) return;
     const myId = savedId || (client && client.myPeerId);
     if (myId) {
       try {
         navigator.sendBeacon(`/api/presence?id=${encodeURIComponent(myId)}&status=offline`);
       } catch (e) {}
     }
-    if (client) {
+    if (client && isConnected) {
       client.disconnect(true);
     }
   };
@@ -1347,7 +1361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function connectRemote() {
+  async function connectRemote() {
     let target = cleanPeerId(elements.remotePeerIdInput.value);
     if (!target) return showToast('Cole o ID do seu amigo.');
     if (target === savedId) return showToast('Não pode conectar ao seu próprio ID.');
@@ -1357,7 +1371,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDesktopContacts();
 
     showToast('Contacto guardado! A estabelecer ligação P2P...');
-    client.connect(target);
+    try {
+      await client.connect(target);
+    } catch (err) {
+      console.warn('Erro ao conectar remotamente:', err);
+    }
   }
 
   function checkUrlHash() {
@@ -2623,5 +2641,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  // =========================================================================
+  // SUPORTE PWA E INSTALAÇÃO NO COMPUTADOR (EDGE / CHROME)
+  // =========================================================================
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  let deferredDesktopInstall = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredDesktopInstall = e;
+  });
+
+  const optInstallDesktopApp = document.getElementById('optInstallDesktopApp');
+  if (optInstallDesktopApp) {
+    optInstallDesktopApp.addEventListener('click', () => {
+      elements.headerMoreDropdown?.classList.add('hidden');
+      if (deferredDesktopInstall) {
+        deferredDesktopInstall.prompt();
+        deferredDesktopInstall.userChoice.then((choice) => {
+          if (choice.outcome === 'accepted') {
+            showToast('A instalar Nexus P2P no Windows...');
+          }
+          deferredDesktopInstall = null;
+        });
+      } else {
+        alert('🖥️ Para instalar no Microsoft Edge ou Google Chrome no PC:\n\n1. Clique no ícone de instalar na barra de endereço (ao lado da estrela de favoritos ⭐️)\nOU\n2. Clique no menu do navegador (...) > "Aplicações" > "Instalar este site como uma aplicação"');
+      }
+    });
   }
 });

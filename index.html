@@ -16,6 +16,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0284c7">
   
   <!-- Bibliotecas Locais -->
   <script src="libs/peerjs.min.js"></script>
@@ -210,6 +212,10 @@
             <button type="button" class="dropdown-item" id="optToggleSound">
               <i data-lucide="volume-2" id="optSoundIcon"></i>
               <span id="optSoundText">Sons de Notificação: Ligados</span>
+            </button>
+            <button type="button" class="dropdown-item" id="optInstallDesktopApp" style="color:var(--primary); font-weight:700;">
+              <i data-lucide="monitor-down"></i>
+              <span>Instalar Aplicação no PC</span>
             </button>
             <button type="button" class="dropdown-item" id="optPartnerInfo">
               <i data-lucide="info"></i>

@@ -88,12 +88,28 @@
         <i data-lucide="volume-2" id="mOptSoundIcon"></i> <span id="mOptSoundText">Sons: Ligados</span>
       </button>
       <div class="m-dropdown-divider"></div>
+      <button type="button" class="m-dropdown-item" id="mOptInstallApp" style="color:var(--primary); font-weight:700;">
+        <i data-lucide="smartphone"></i> <span>📲 Instalar App no Telemóvel</span>
+      </button>
+      <div class="m-dropdown-divider"></div>
       <button type="button" class="m-dropdown-item" id="mOptClearChat">
         <i data-lucide="trash-2"></i> <span>Limpar Mensagens</span>
       </button>
       <button type="button" class="m-dropdown-item text-danger" id="mOptDisconnect">
         <i data-lucide="log-out"></i> <span>Desconectar Amigo</span>
       </button>
+    </div>
+
+    <!-- BANNER DE INSTALAÇÃO PWA MOBILE -->
+    <div id="mInstallAppBanner" class="hidden" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:white; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:0.8rem; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:90;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <i data-lucide="smartphone" style="width:18px; height:18px; flex-shrink:0;"></i>
+        <span>Instalar <strong>Nexus P2P</strong> como aplicação?</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+        <button type="button" id="mBtnTriggerInstall" style="background:white; color:#0284c7; border:none; border-radius:6px; padding:5px 12px; font-weight:700; font-size:0.75rem; cursor:pointer;">Instalar</button>
+        <button type="button" id="mBtnDismissInstall" style="background:transparent; color:white; border:none; padding:4px; cursor:pointer; opacity:0.8;"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+      </div>
     </div>
 
     <!-- ÁREA DE CONTEÚDO COM AS 4 ABAS -->

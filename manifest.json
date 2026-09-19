@@ -1,17 +1,20 @@
 {
-  "name": "Nexus P2P Chat Mobile",
+  "id": "nexus-p2p-chat",
+  "name": "Nexus P2P Chat",
   "short_name": "Nexus P2P",
-  "description": "Chat P2P descentralizado direto e seguro para telemóveis",
-  "start_url": "mobile.html",
+  "description": "Chat P2P descentralizado direto e seguro para telemóveis e computadores",
+  "start_url": "./mobile.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f8fafc",
+  "background_color": "#0f172a",
   "theme_color": "#0284c7",
   "icons": [
     {
       "src": "libs/icon.svg",
       "sizes": "192x192 512x512",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -147,12 +147,30 @@ class P2PClient {
           if (handledProbe) return; // Não polui a UI com toasts de erro ao sondar amigos offline
         }
 
+        // Se for o erro "Cannot connect to new peer after disconnecting"
+        if (err && (err.type === 'cannot-connect' || (err.message && err.message.includes('disconnecting')))) {
+          console.warn('Detetada desconexão de sinalização. A restabelecer nó PeerJS automaticamente...');
+          try {
+            if (this.peer && !this.peer.destroyed) {
+              this.peer.reconnect();
+            } else {
+              this.init(this.myPeerId, this.myNickname, this.myAvatar);
+            }
+          } catch (e) {}
+          return; // Suprime erro técnico para não incomodar o utilizador
+        }
+
         console.error('Erro PeerJS:', err);
         this.onError(err);
       });
 
       this.peer.on('disconnected', () => {
-        console.warn('Desconectado do servidor de sinalização');
+        console.warn('PeerJS desconectado do servidor de sinalização. A reconectar automaticamente...');
+        try {
+          if (this.peer && !this.peer.destroyed) {
+            this.peer.reconnect();
+          }
+        } catch (e) {}
       });
     } catch (e) {
       console.error('Falha ao inicializar PeerJS:', e);
@@ -161,20 +179,89 @@ class P2PClient {
   }
 
   /**
-   * Conecta ativamente a outro par pelo ID
+   * Garante que o nó PeerJS está ativo, conectado ao servidor de sinalização e pronto a enviar/receber conexões
    */
-  connect(remoteId) {
+  async ensurePeerConnected() {
     if (!this.peer || this.peer.destroyed) {
-      throw new Error('Peer não está pronto');
-    }
-    if (this.dataConnection && this.dataConnection.open) {
-      this.dataConnection.close();
+      this.init(this.myPeerId, this.myNickname, this.myAvatar);
     }
 
-    const conn = this.peer.connect(remoteId, {
-      reliable: true
+    if (this.peer && this.peer.disconnected) {
+      console.log('Nó PeerJS estava desconectado. A reconectar ao servidor de sinalização...');
+      try {
+        this.peer.reconnect();
+      } catch (e) {
+        this.init(this.myPeerId, this.myNickname, this.myAvatar);
+      }
+    }
+
+    return new Promise((resolve) => {
+      if (this.peer && !this.peer.destroyed && !this.peer.disconnected && this.myPeerId) {
+        return resolve(true);
+      }
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(!!this.peer && !this.peer.destroyed);
+        }
+      }, 2000);
+
+      if (this.peer) {
+        this.peer.once('open', () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            resolve(true);
+          }
+        });
+      }
     });
-    this.setupDataConnection(conn);
+  }
+
+  /**
+   * Conecta ativamente a outro par pelo ID de forma resiliente e auto-recuperável
+   */
+  async connect(remoteId) {
+    if (!remoteId) return;
+
+    // Garante que o nó está 100% pronto antes de tentar conectar
+    await this.ensurePeerConnected();
+
+    if (!this.peer || this.peer.destroyed) {
+      throw new Error('Nó P2P a inicializar. Tente novamente em 2 segundos.');
+    }
+
+    if (this.peer.disconnected) {
+      try {
+        this.peer.reconnect();
+        await new Promise(r => setTimeout(r, 500));
+      } catch (e) {}
+    }
+
+    if (this.dataConnection && this.dataConnection.open) {
+      try { this.dataConnection.close(); } catch (e) {}
+    }
+
+    try {
+      const conn = this.peer.connect(remoteId, {
+        reliable: true
+      });
+      this.setupDataConnection(conn);
+    } catch (err) {
+      console.warn('Erro ao chamar peer.connect, a reiniciar nó:', err);
+      try {
+        this.init(this.myPeerId, this.myNickname, this.myAvatar);
+        setTimeout(() => {
+          try {
+            if (this.peer && !this.peer.destroyed && !this.peer.disconnected) {
+              const conn = this.peer.connect(remoteId, { reliable: true });
+              this.setupDataConnection(conn);
+            }
+          } catch (e) {}
+        }, 1200);
+      } catch (e) {}
+    }
   }
 
   /**
@@ -226,6 +313,10 @@ class P2PClient {
    */
   checkPeerPresence(targetPeerId) {
     if (!this.peer || this.peer.destroyed || !targetPeerId) {
+      return Promise.resolve(false);
+    }
+    if (this.peer.disconnected) {
+      try { this.peer.reconnect(); } catch (e) {}
       return Promise.resolve(false);
     }
     if (targetPeerId === this.myPeerId) {
