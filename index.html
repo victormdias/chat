@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus P2P — Chat P2P Descentralizado & Seguro</title>
+  <script>
+    // Deteção automática: se for telemóvel/tablet, abre a versão otimizada mobile
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768 && window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) {
+      if (!window.location.search.includes('desktop=true')) {
+        window.location.replace('mobile.html' + window.location.hash);
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Bibliotecas Locais -->
+  <script src="libs/peerjs.min.js"></script>
+  <script src="libs/qrcode.min.js"></script>
+  <script src="libs/lucide.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    
+    <!-- ====================================================================
+         1. COLUNA ESQUERDA: SIDEBAR DE NAVEGAÇÃO E CONEXÕES
+         ==================================================================== -->
+    <aside class="sidebar" id="sidebar">
+      <!-- CABEÇALHO DO LOGÓTIPO -->
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-logo-icon">
+            <i data-lucide="shield"></i>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-title">Nexus P2P</h1>
+            <span class="badge-e2e">E2E ENCRIPTADO</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARTÃO DO MEU PERFIL (FOTO E ID FIXO) -->
+      <div class="my-profile-mini-card" id="myProfileMiniBtn" title="Clique para alterar a sua foto, nome ou ID permanente">
+        <div class="my-profile-avatar-wrap">
+          <div class="avatar-circle" id="mySidebarAvatar">Eu</div>
+          <span class="status-dot online"></span>
+        </div>
+        <div class="my-profile-info">
+          <strong id="mySidebarName">Utilizador</strong>
+          <span class="my-permanent-id-badge" id="mySidebarIdBadge">ID: nexus-...</span>
+        </div>
+        <div class="icon-btn-edit-profile">
+          <i data-lucide="edit-3"></i>
+        </div>
+      </div>
+
+      <!-- MENU PRINCIPAL -->
+      <nav class="sidebar-menu">
+        <button class="menu-item active" id="menuConnectionsBtn">
+          <div class="menu-item-left">
+            <i data-lucide="message-square"></i>
+            <span>Conexões</span>
+          </div>
+          <span class="menu-badge">1</span>
+        </button>
+        <button class="menu-item" id="menuDiscoverBtn">
+          <div class="menu-item-left">
+            <i data-lucide="compass"></i>
+            <span>Descobrir</span>
+          </div>
+        </button>
+        <button class="menu-item" id="menuSettingsBtn">
+          <div class="menu-item-left">
+            <i data-lucide="settings"></i>
+            <span>Configurações</span>
+          </div>
+        </button>
+      </nav>
+
+      <!-- SECTOR: SUAS CONEXÕES -->
+      <div class="connections-section">
+        <div class="section-header-row">
+          <span class="section-label">Suas conexões</span>
+          <span class="online-indicator-pill">
+            <span class="dot-green"></span>
+            <span id="connectionsCountText">1 online</span>
+          </span>
+        </div>
+
+        <!-- LISTA DE CONEXÕES ATIVAS -->
+        <div class="active-connections-list" id="connectionsList">
+          <div class="connection-item-card active" id="activePeerCard">
+            <div class="connection-avatar-wrap">
+              <div class="avatar-circle" id="sidebarPeerAvatar">UT</div>
+              <span class="status-dot online"></span>
+            </div>
+            <div class="connection-info">
+              <h4 class="connection-name" id="sidebarPeerName">Utilizador-109</h4>
+              <span class="connection-status">
+                <span class="dot-green-tiny"></span>
+                <span id="sidebarPeerStatus">Online • agora</span>
+              </span>
+            </div>
+            <div class="connection-check">
+              <i data-lucide="check"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARTÃO: CONECTAR A UM PAR -->
+      <div class="connect-card">
+        <div class="connect-card-header">
+          <div class="connect-icon-title">
+            <i data-lucide="link"></i>
+            <h3>Conectar a um par</h3>
+          </div>
+          <p class="connect-card-desc">Insira o ID do seu amigo para iniciar uma conversa privada.</p>
+        </div>
+
+        <div class="connect-input-box">
+          <input type="text" id="remotePeerIdInput" placeholder="Cole o ID do seu amigo..." autocomplete="off">
+          <button class="input-inline-btn" id="inlineQrScanBtn" title="Ver / Ler QR Code">
+            <i data-lucide="qr-code"></i>
+          </button>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button class="btn-gradient-connect" id="connectPeerBtn" style="flex:1;">
+            <i data-lucide="zap"></i> Conectar
+          </button>
+          <button type="button" class="btn-action-photo" id="addFriendBtn" title="Guardar este ID na sua lista de amigos" style="padding:0 12px; display:flex; align-items:center; gap:5px; font-weight:600; font-size:0.8rem; border-radius:var(--radius-md); border:1px solid var(--border-light); background:#f8fafc; color:var(--text-dark); cursor:pointer;">
+            <i data-lucide="user-plus" style="width:16px; height:16px;"></i> Guardar
+          </button>
+        </div>
+
+        <button class="btn-subtle-share" id="openShareModalBtn">
+          <i data-lucide="qr-code"></i> Partilhar Link & QR Code
+        </button>
+      </div>
+
+      <!-- RODAPÉ DA SIDEBAR: STATUS -->
+      <div class="sidebar-status-pill">
+        <span class="dot-green" id="sidebarStatusDot"></span>
+        <span id="sidebarStatusText">Pronto para conectar</span>
+      </div>
+    </aside>
+
+    <!-- ====================================================================
+         2. COLUNA CENTRAL: CHAT PRINCIPAL
+         ==================================================================== -->
+    <main class="chat-main-area">
+      <!-- CABEÇALHO DO CHAT -->
+      <header class="chat-top-header">
+        <div class="chat-header-user">
+          <button class="icon-nav-back" id="backToSidebarBtn" title="Voltar">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <div class="header-avatar-wrap">
+            <div class="avatar-circle header-avatar" id="chatHeaderAvatar">UT</div>
+            <span class="status-dot online" id="chatHeaderStatusDot"></span>
+          </div>
+          <div class="header-user-meta">
+            <h2 id="chatHeaderName">Utilizador-109</h2>
+            <div class="header-user-sub">
+              <span class="dot-green-tiny"></span>
+              <span id="chatHeaderStatusText">Online • Conexão direta P2P</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-header-actions">
+          <button class="header-btn" id="searchChatBtn" title="Pesquisar">
+            <i data-lucide="search"></i>
+          </button>
+          <button class="header-btn" id="headerAudioCallBtn" title="Chamada de voz">
+            <i data-lucide="phone"></i>
+          </button>
+          <button class="header-btn" id="headerVideoCallBtn" title="Chamada de video">
+            <i data-lucide="video"></i>
+          </button>
+          <button class="header-btn btn-leave-chat hidden" id="headerLeaveBtn" title="Desconectar / Sair da conversa">
+            <i data-lucide="log-out"></i>
+          </button>
+          <button class="header-btn" id="headerMoreOptionsBtn" title="Mais opções">
+            <i data-lucide="more-vertical"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- CORPO DO CHAT COM A ILUSTRAÇÃO HERO -->
+      <div class="chat-body-container" id="chatBodyContainer">
+        <!-- HERO / ESTADO INICIAL -->
+        <div class="chat-hero-state" id="chatHeroState">
+          <!-- ILUSTRAÇÃO 3D GLOSSY DOS BALÕES E ESCUDO -->
+          <div class="hero-illustration">
+            <svg viewBox="0 0 240 180" class="hero-svg" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <!-- Gradientes da Ilustração -->
+                <linearGradient id="blueBubbleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#38bdf8" />
+                  <stop offset="50%" stop-color="#0284c7" />
+                  <stop offset="100%" stop-color="#0369a1" />
+                </linearGradient>
+                <linearGradient id="purpleBubbleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#c084fc" />
+                  <stop offset="50%" stop-color="#a855f7" />
+                  <stop offset="100%" stop-color="#7e22ce" />
+                </linearGradient>
+                <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff" />
+                  <stop offset="100%" stop-color="#e0f2fe" />
+                </linearGradient>
+                <filter id="glowFilter" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0284c7" flood-opacity="0.3" />
+                </filter>
+                <filter id="purpleGlow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#a855f7" flood-opacity="0.3" />
+                </filter>
+              </defs>
+
+              <!-- Anéis orbitais sutis -->
+              <ellipse cx="120" cy="100" rx="100" ry="36" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.35" />
+              <ellipse cx="120" cy="98" rx="80" ry="28" stroke="#a855f7" stroke-width="1.2" opacity="0.3" />
+
+              <!-- Partículas cintilantes -->
+              <circle cx="98" cy="38" r="2.5" fill="#38bdf8" />
+              <circle cx="178" cy="64" r="3" fill="#c084fc" />
+              <polygon points="178,60 180,64 184,64 181,66 182,70 178,67 174,70 175,66 172,64 176,64" fill="#a855f7" opacity="0.7" />
+              <circle cx="58" cy="110" r="2" fill="#38bdf8" opacity="0.6" />
+
+              <!-- Balão Roxo de Fundo -->
+              <g filter="url(#purpleGlow)">
+                <path d="M125 72 C125 58 140 48 160 48 C180 48 196 58 196 72 C196 82 186 90 172 94 L175 108 L158 97 C152 98 146 98 140 97 C130 94 125 84 125 72 Z" fill="url(#purpleBubbleGrad)" />
+              </g>
+
+              <!-- Balão Azul Principal em Destaque -->
+              <g filter="url(#glowFilter)">
+                <rect x="52" y="38" width="94" height="72" rx="24" fill="url(#blueBubbleGrad)" />
+                <!-- Cauda do balão azul -->
+                <path d="M72 108 L62 126 L86 110 Z" fill="#0284c7" />
+
+                <!-- Reflexo Glossy Interno -->
+                <rect x="56" y="42" width="86" height="30" rx="16" fill="white" opacity="0.15" />
+
+                <!-- Escudo no Centro do Balão Azul -->
+                <path d="M99 56 L113 62 V76 C113 86 106 94 99 98 C92 94 85 86 85 76 V62 L99 56 Z" fill="url(#shieldGrad)" />
+                <!-- Ícone de cadeado no escudo -->
+                <path d="M96 74 V71 C96 69.3 97.3 68 99 68 C100.7 68 102 69.3 102 71 V74 M94 74 H104 V82 H94 Z" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              </g>
+            </svg>
+          </div>
+
+          <!-- TÍTULO PRINCIPAL COM GRADIENTE -->
+          <h2 class="hero-title">
+            Pronto para <span class="gradient-text">conversar</span>?
+          </h2>
+
+          <p class="hero-desc">
+            Envie o seu link ou ID para um amigo para iniciar uma sessão direta e 100% privada.
+          </p>
+
+          <!-- BOTÃO PRINCIPAL DE CONEXÃO -->
+          <button class="hero-cta-btn" id="heroShareBtn">
+            <i data-lucide="share-2"></i> Partilhar Link de Conexão
+          </button>
+
+          <!-- DISTINTIVOS DE PRIVACIDADE E SEGURANÇA -->
+          <div class="hero-trust-badges">
+            <div class="trust-badge">
+              <i data-lucide="lock"></i>
+              <span>E2E Encriptado</span>
+            </div>
+            <div class="trust-badge">
+              <i data-lucide="shield-check"></i>
+              <span>100% Privado</span>
+            </div>
+            <div class="trust-badge">
+              <i data-lucide="zap"></i>
+              <span>P2P Direto</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTAINER DE MENSAGENS REAIS (QUANDO CONVERSANDO) -->
+        <div class="messages-flow-container hidden" id="messagesFlowContainer"></div>
+      </div>
+
+      <!-- INDICADOR DE DIGITAÇÃO -->
+      <div class="typing-indicator-bar hidden" id="typingIndicatorBar">
+        <span id="typingSenderText">O par está a escrever</span>
+        <span class="typing-pulse-dots">
+          <span></span><span></span><span></span>
+        </span>
+      </div>
+
+      <!-- BARRA DE ENTRADA ARREDONDADA (PILL INPUT BAR) -->
+      <footer class="chat-input-wrapper">
+        <!-- FORMULÁRIO DE ENVIO -->
+        <form class="pill-chat-form" id="pillChatForm">
+          <input type="file" id="fileAttachmentInput" style="display:none;" multiple>
+          
+          <button type="button" class="pill-icon-btn" id="emojiButton" title="Emojis">
+            <i data-lucide="smile"></i>
+          </button>
+
+          <input 
+            type="text" 
+            id="mainMessageInput" 
+            class="pill-text-input" 
+            placeholder="Escreva uma mensagem..."
+            autocomplete="off"
+          >
+
+          <button type="button" class="pill-icon-btn" id="paperclipBtn" title="Anexar ficheiro ou imagem">
+            <i data-lucide="paperclip"></i>
+          </button>
+
+          <button type="button" class="pill-icon-btn" id="micVoiceBtn" title="Gravar áudio de voz">
+            <i data-lucide="mic"></i>
+          </button>
+
+          <button type="button" class="pill-icon-btn btn-nudge" id="nudgeBtn" title="Chamar a atenção (Zumbido / Tremer ecrã)">
+            <i data-lucide="zap"></i>
+          </button>
+
+          <button type="submit" class="pill-send-btn" id="mainSendBtn" title="Enviar mensagem">
+            <i data-lucide="send"></i>
+          </button>
+        </form>
+
+        <!-- EMOJIS POPUP -->
+        <div class="floating-emojis-popup hidden" id="emojisPopup">
+          <span class="quick-emoji">👍</span>
+          <span class="quick-emoji">❤️</span>
+          <span class="quick-emoji">🔥</span>
+          <span class="quick-emoji">😂</span>
+          <span class="quick-emoji">🎉</span>
+          <span class="quick-emoji">🚀</span>
+          <span class="quick-emoji">👀</span>
+          <span class="quick-emoji">🙏</span>
+        </div>
+
+        <!-- BARRA FLUTUANTE DE GRAVAÇÃO DE VOZ -->
+        <div class="floating-voice-bar hidden" id="floatingVoiceBar">
+          <div class="voice-rec-status">
+            <span class="rec-red-dot"></span>
+            <span class="rec-clock" id="recClockDisplay">00:00</span>
+            <span>A gravar nota de voz...</span>
+          </div>
+          <div class="voice-rec-btns">
+            <button type="button" class="icon-btn-danger" id="cancelRecBtn"><i data-lucide="trash-2"></i></button>
+            <button type="button" class="btn-voice-send" id="sendRecBtn"><i data-lucide="send"></i> Enviar</button>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <!-- ====================================================================
+         3. COLUNA DIREITA: PAINEL DE DETALHES DO PAR
+         ==================================================================== -->
+    <aside class="peer-sidebar" id="peerSidebar">
+      <!-- PERFIL DO PAR -->
+      <div class="peer-profile-header">
+        <div class="peer-profile-avatar-wrap">
+          <div class="avatar-circle large-avatar" id="rightPanelAvatar">UT</div>
+          <span class="status-dot online"></span>
+        </div>
+        <button class="sparkle-btn" title="Privacidade Garantida">
+          <i data-lucide="sparkles"></i>
+        </button>
+        <h3 class="peer-profile-name" id="rightPanelName">Utilizador-109</h3>
+        <span class="peer-profile-status" id="rightPanelStatus">Online agora</span>
+      </div>
+
+      <!-- SECÇÃO: DETALHES DA CONEXÃO -->
+      <div class="sidebar-info-section">
+        <h4 class="info-section-title">Detalhes da conexão</h4>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <i data-lucide="shield"></i>
+            <span>Modo</span>
+          </div>
+          <strong class="detail-value" id="detailModeVal">P2P Direto</strong>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <i data-lucide="lock"></i>
+            <span>Criptografia</span>
+          </div>
+          <strong class="detail-value" id="detailCryptoVal">E2E (ponta a ponta)</strong>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <i data-lucide="link"></i>
+            <span>ID do par</span>
+          </div>
+          <div class="detail-value-copy">
+            <code class="code-id-green" id="rightPanelPeerId">nexus-3jz7w4ab</code>
+            <button class="copy-icon-btn-green" id="copyPartnerIdBtn" title="Copiar ID do par">
+              <i data-lucide="copy"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">
+            <i data-lucide="bar-chart-2"></i>
+            <span>Estado</span>
+          </div>
+          <strong class="detail-value text-green" id="detailStatusVal">Conectado</strong>
+        </div>
+      </div>
+
+      <!-- SECÇÃO: AÇÕES RÁPIDAS -->
+      <div class="sidebar-info-section">
+        <h4 class="info-section-title">Ações rápidas</h4>
+
+        <button class="action-outline-btn" id="rightPanelAudioCallBtn">
+          <i data-lucide="phone"></i>
+          <span>Chamada de voz</span>
+        </button>
+
+        <button class="action-outline-btn" id="rightPanelVideoCallBtn">
+          <i data-lucide="video"></i>
+          <span>Chamada de video</span>
+        </button>
+
+        <button class="action-outline-btn" id="rightPanelNudgeBtn">
+          <i data-lucide="zap"></i>
+          <span>Chamar a atenção</span>
+        </button>
+
+        <button class="action-danger-btn" id="rightPanelClearChatBtn">
+          <i data-lucide="trash-2"></i>
+          <span>Limpar conversa</span>
+        </button>
+      </div>
+
+      <!-- RODAPÉ DE PRIVACIDADE -->
+      <div class="privacy-bottom-banner">
+        <div class="privacy-lock-icon">
+          <i data-lucide="lock"></i>
+        </div>
+        <p class="privacy-text">A sua privacidade é a nossa prioridade</p>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ====================================================================
+       MODAIS: PARTILHA / QR CODE, CHAMADA P2P E LIGHTBOX
+       ==================================================================== -->
+  <!-- MODAL DE PARTILHA & QR CODE -->
+  <div class="modal-backdrop hidden" id="shareModal">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <h3><i data-lucide="qr-code"></i> Convidar para o Nexus P2P</h3>
+        <button class="icon-btn-close" id="closeShareModalBtn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-card-body">
+        <p>Partilhe o link ou mostre o QR Code para conectar com 1 clique:</p>
+        <div class="qr-canvas-holder">
+          <div id="qrcodeBox"></div>
+        </div>
+        <div class="modal-field">
+          <label>Link Direto de Conexão:</label>
+          <div class="input-with-btn">
+            <input type="text" id="shareLinkInput" readonly>
+            <button class="btn-copy-modal" id="copyShareLinkBtn"><i data-lucide="copy"></i> Copiar</button>
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>O teu ID:</label>
+          <div class="input-with-btn">
+            <input type="text" id="myIdModalInput" readonly>
+            <button class="btn-copy-modal" id="copyMyIdModalBtn"><i data-lucide="copy"></i> Copiar ID</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIGURAÇÕES & PERFIL (DESKTOP) -->
+  <div class="modal-backdrop hidden" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <h3><i data-lucide="settings"></i> Perfil e Configurações</h3>
+        <button class="icon-btn-close" id="closeSettingsModalBtn"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-card-body">
+        <!-- FOTO DE PERFIL -->
+        <div class="settings-photo-section">
+          <div class="settings-avatar-wrap">
+            <div class="avatar-circle settings-avatar-circle" id="settingsAvatarPreview">Eu</div>
+            <label for="desktopPhotoInput" class="btn-avatar-camera-overlay" title="Carregar Foto">
+              <i data-lucide="camera"></i>
+            </label>
+            <input type="file" id="desktopPhotoInput" accept="image/*" style="display:none;">
+          </div>
+          <div class="settings-photo-info">
+            <h4>A sua Foto de Perfil</h4>
+            <p>Os seus amigos verão esta foto no chat e nas chamadas.</p>
+            <div class="photo-btn-row">
+              <button class="btn-action-photo" id="desktopUploadPhotoBtn"><i data-lucide="upload"></i> Escolher Foto</button>
+              <button class="btn-action-photo danger hidden" id="desktopRemovePhotoBtn"><i data-lucide="trash-2"></i> Remover Foto</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label>O seu Nome de Exibição:</label>
+          <div class="input-with-btn">
+            <input type="text" id="settingsNickInput" maxlength="18" placeholder="Ex: Victor">
+            <button class="btn-copy-modal" id="btnSaveDesktopNick"><i data-lucide="check"></i> Guardar Nome</button>
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label>O seu ID Fixo / Permanente:</label>
+          <div class="input-with-btn">
+            <input type="text" id="settingsCustomIdInput" maxlength="24" placeholder="Ex: victor-pc">
+            <button class="btn-copy-modal" id="btnSaveDesktopId"><i data-lucide="save"></i> Guardar ID</button>
+            <button class="btn-copy-modal" id="btnRegenDesktopId" title="Gerar novo ID aleatório"><i data-lucide="refresh-cw"></i></button>
+          </div>
+          <small class="field-hint">Este ID é permanente e fica guardado no seu computador. Pode personalizá-lo para que os seus amigos usem sempre o mesmo.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CHAMADA DE VÍDEO / VOZ -->
+  <div class="call-modal-fullscreen hidden" id="callOverlay">
+    <div class="call-modal-box">
+      <div class="call-modal-header">
+        <span id="callModalTitle">Chamada P2P em Curso</span>
+        <span class="call-duration-tag" id="callDurationDisplay">00:00</span>
+      </div>
+      <div class="call-video-stage" id="callVideoStage">
+        <video id="remoteVideoFeed" autoplay playsinline></video>
+        <div class="call-fallback-stage" id="callVideoFallback">
+          <div class="avatar-circle call-large-avatar" id="callFallbackAvatar">UT</div>
+          <p id="callFallbackText">A estabelecer stream...</p>
+        </div>
+        <div class="call-pip-video" id="localVideoPip">
+          <video id="localVideoFeed" autoplay playsinline muted></video>
+          <span>Você</span>
+        </div>
+      </div>
+
+      <!-- PALCO EXCLUSIVO PARA CHAMADA DE VOZ (SEM VÍDEO) -->
+      <div class="call-audio-stage hidden" id="callAudioStage">
+        <audio id="remoteAudioFeed" autoplay></audio>
+        <div class="audio-caller-box">
+          <div class="audio-avatar-pulse">
+            <div class="avatar-circle audio-avatar-large" id="audioCallAvatar">UT</div>
+          </div>
+          <h3 id="audioCallName">Utilizador</h3>
+          <span class="audio-call-status"><i data-lucide="phone"></i> Chamada de Voz P2P</span>
+        </div>
+      </div>
+
+      <div class="call-controls-bar">
+        <button class="call-btn-circle" id="callMuteBtn" title="Silenciar"><i data-lucide="mic"></i></button>
+        <button class="call-btn-circle" id="callCameraBtn" title="Câmara"><i data-lucide="video"></i></button>
+        <button class="call-btn-circle call-hangup" id="callHangupBtn" title="Terminar"><i data-lucide="phone-off"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POPUP DE CHAMADA A RECEBER -->
+  <div class="incoming-ring-banner hidden" id="incomingRingBanner">
+    <div class="incoming-ring-card">
+      <div class="incoming-avatar-circle" id="incomingRingAvatar">UT</div>
+      <div class="incoming-info">
+        <h4 id="incomingRingName">Utilizador-109</h4>
+        <p id="incomingRingType">Chamada P2P a entrar...</p>
+      </div>
+      <div class="incoming-btns">
+        <button class="btn-circle-red" id="rejectIncomingCallBtn"><i data-lucide="phone-off"></i></button>
+        <button class="btn-circle-green" id="acceptIncomingCallBtn"><i data-lucide="phone"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX DE IMAGENS -->
+  <div class="image-lightbox-overlay hidden" id="imageLightbox">
+    <button class="lightbox-close-btn" id="closeLightboxBtn"><i data-lucide="x"></i></button>
+    <img src="" id="lightboxImageEl" alt="Foto">
+  </div>
+
+  <!-- CONTAINER DE TOASTS -->
+  <div class="toasts-shelf" id="toastsShelf"></div>
+
+  <!-- SCRIPTS -->
+  <script src="webrtc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

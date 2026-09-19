@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Nexus P2P Mobile</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0284c7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="mobile.css">
+  
+  <!-- Bibliotecas Locais -->
+  <script src="libs/peerjs.min.js"></script>
+  <script src="libs/qrcode.min.js"></script>
+  <script src="libs/lucide.min.js"></script>
+</head>
+<body>
+  <div class="mobile-app">
+    <!-- BARRA SUPERIOR MOBILE (HEADER) -->
+    <header class="mobile-top-bar">
+      <div class="top-bar-left">
+        <div class="m-avatar-wrap">
+          <div class="m-avatar" id="mHeaderAvatar">?</div>
+          <span class="m-status-dot dot-offline" id="mHeaderDot"></span>
+        </div>
+        <div class="m-peer-meta">
+          <h2 id="mHeaderTitle">Nexus P2P</h2>
+          <span class="m-peer-sub hidden" id="mHeaderSubtitle"></span>
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <span class="m-latency-tag hidden" id="mLatencyTag">
+          <i data-lucide="activity"></i> <span id="mLatencyVal">--ms</span>
+        </span>
+        <button class="m-icon-btn" id="mThemeToggleBtn" title="Alternar Tema Claro/Escuro">
+          <i data-lucide="moon" id="mThemeIcon"></i>
+        </button>
+        <a href="index.html" class="m-icon-btn" title="Versão Computador">
+          <i data-lucide="monitor"></i>
+        </a>
+      </div>
+    </header>
+
+    <!-- ÁREA DE CONTEÚDO COM AS 4 ABAS -->
+    <div class="mobile-views">
+
+      <!-- ====================================================================
+           ABA 1: CHAT
+           ==================================================================== -->
+      <section class="tab-view active" id="view-chat">
+        <!-- FLUXO DE MENSAGENS -->
+        <div class="m-messages-container" id="mMessagesContainer">
+          <div class="m-empty-state" id="mEmptyState">
+            <div class="m-empty-icon">
+              <i data-lucide="radio"></i>
+            </div>
+            <h3>Sem mensagens ainda</h3>
+            <p>Conecte-se com um amigo na aba <strong>Conectar</strong> para conversar de forma direta e 100% encriptada.</p>
+            <button class="m-btn m-btn-primary" id="mGoConnectBtn">
+              <i data-lucide="link-2"></i> Ir para Conexão
+            </button>
+          </div>
+        </div>
+
+        <!-- INDICADOR DE DIGITAÇÃO -->
+        <div class="m-typing-bar hidden" id="mTypingBar">
+          <span id="mTypingText">O par está a escrever</span>
+          <span class="m-dots"><span></span><span></span><span></span></span>
+        </div>
+
+        <!-- BOTÃO FLUTUANTE DE SAIR DA CONVERSA (ACIMA DE ENVIAR) -->
+        <button type="button" class="m-float-leave-btn hidden" id="mFloatLeaveBtn" title="Sair da Conversa / Desconectar">
+          <i data-lucide="log-out"></i> <span>Sair</span>
+        </button>
+
+        <!-- BARRA DE ENTRADA DO CHAT -->
+        <div class="m-input-area">
+          <!-- BARRA DE GRAVAÇÃO DE VOZ -->
+          <div class="m-voice-bar hidden" id="mVoiceBar">
+            <div class="m-rec-info">
+              <span class="m-rec-dot"></span>
+              <span class="m-rec-time" id="mRecTimer">00:00</span>
+              <span class="m-rec-text">A gravar voz...</span>
+            </div>
+            <div class="m-rec-actions">
+              <button class="m-icon-btn-danger" id="mCancelVoiceBtn">
+                <i data-lucide="trash-2"></i>
+              </button>
+              <button class="m-btn m-btn-sm m-btn-primary" id="mSendVoiceBtn">
+                <i data-lucide="send"></i> Enviar
+              </button>
+            </div>
+          </div>
+
+          <!-- FORMULÁRIO NORMAL -->
+          <form class="m-chat-form" id="mChatForm">
+            <input type="file" id="mFileInput" style="display:none;" multiple>
+
+            <!-- Emojis Rápidos -->
+            <div class="m-quick-emojis hidden" id="mQuickEmojis">
+              <span class="m-emoji-opt">👍</span>
+              <span class="m-emoji-opt">❤️</span>
+              <span class="m-emoji-opt">🔥</span>
+              <span class="m-emoji-opt">😂</span>
+              <span class="m-emoji-opt">🎉</span>
+              <span class="m-emoji-opt">🚀</span>
+              <span class="m-emoji-opt">👀</span>
+              <span class="m-emoji-opt">🙏</span>
+            </div>
+
+            <div class="m-input-wrapper">
+              <button type="button" class="m-inline-btn" id="mEmojiBtn" title="Emojis">
+                <i data-lucide="smile"></i>
+              </button>
+              <textarea id="mMessageInput" rows="1" placeholder="Mensagem..." disabled></textarea>
+              <button type="button" class="m-inline-btn" id="mAttachBtn" title="Enviar Foto/Ficheiro">
+                <i data-lucide="paperclip"></i>
+              </button>
+            </div>
+
+            <button type="button" class="m-action-btn m-btn-nudge" id="mNudgeBtn" title="Chamar a atenção (Zumbido / Nudge)" disabled>
+              <i data-lucide="zap"></i>
+            </button>
+
+            <button type="button" class="m-action-btn" id="mRecordVoiceBtn" title="Gravar Nota de Voz" disabled>
+              <i data-lucide="mic"></i>
+            </button>
+
+            <button type="submit" class="m-send-btn" id="mSendBtn" title="Enviar" disabled>
+              <i data-lucide="send"></i>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           ABA 2: CONECTAR
+           ==================================================================== -->
+      <section class="tab-view" id="view-connect">
+        <div class="tab-scroll-body">
+          <!-- CARD: MEU PERFIL E MEU ID -->
+          <div class="m-card">
+            <div class="m-card-header">
+              <div class="m-user-preview">
+                <div class="m-avatar large" id="mMyAvatar">Eu</div>
+                <div>
+                  <h3 id="mMyNameTitle">O Meu Perfil</h3>
+                  <span class="m-badge-p2p" id="mMyStatusBadge">A preparar nó P2P...</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="m-id-box">
+              <label>O teu ID de Conexão:</label>
+              <div class="m-copy-row">
+                <code id="mMyIdText">A gerar...</code>
+                <button class="m-btn m-btn-sm m-btn-secondary" id="mCopyMyIdBtn">
+                  <i data-lucide="copy"></i> Copiar
+                </button>
+              </div>
+            </div>
+
+            <!-- BOTÃO NATIVO DE PARTILHAR (WHATSAPP, TELEGRAM, ETC) -->
+            <button class="m-btn m-btn-primary m-btn-full" id="mShareNativeBtn">
+              <i data-lucide="share-2"></i> Partilhar no WhatsApp / Mensagem
+            </button>
+          </div>
+
+          <!-- CARD: CÓDIGO QR PARA LER COM OUTRO TELEMÓVEL -->
+          <div class="m-card text-center">
+            <h4 class="m-card-title"><i data-lucide="qr-code"></i> Código QR de Convite</h4>
+            <p class="m-card-desc">Mostre este QR code ao seu amigo para ele se conectar instantaneamente pela câmara:</p>
+            <div class="m-qr-container">
+              <div id="mQrcodeBox"></div>
+            </div>
+          </div>
+
+          <!-- CARD: LIGAR AO AMIGO -->
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="link"></i> Conectar ao Amigo</h4>
+            <p class="m-card-desc">Cole o ID ou link que o seu amigo lhe enviou:</p>
+            <div class="m-connect-input-group">
+              <input type="text" id="mRemotePeerInput" placeholder="Cole o ID do amigo aqui...">
+              <button class="m-btn m-btn-primary" id="mConnectRemoteBtn">
+                <i data-lucide="zap"></i> Conectar
+              </button>
+              <button type="button" class="m-btn" id="mAddFriendBtn" title="Guardar Amigo" style="background:var(--bg-surface-subtle); border:1px solid var(--border-color); color:var(--text-main); padding:0 12px; font-weight:600; font-size:0.8rem; display:flex; align-items:center; gap:4px;">
+                <i data-lucide="user-plus"></i> Guardar
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD: CONEXÃO ATIVA / DESCONECTAR -->
+          <div class="m-card hidden" id="mActiveSessionCard">
+            <div class="m-session-row">
+              <div class="m-avatar" id="mActivePartnerAvatar">?</div>
+              <div style="flex:1">
+                <strong id="mActivePartnerName">Amigo</strong>
+                <small id="mActivePartnerId" style="display:block; font-family:monospace; color:var(--text-dim)">ID: --</small>
+              </div>
+              <button class="m-btn m-btn-sm m-btn-danger" id="mDisconnectBtn">
+                <i data-lucide="power"></i> Desconectar
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD: AMIGOS / CONTACTOS GUARDADOS -->
+          <div class="m-card" id="mContactsCard">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h4 class="m-card-title"><i data-lucide="users"></i> Meus Amigos</h4>
+              <span id="mContactsCountBadge" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">0 contactos</span>
+            </div>
+            <div id="mContactsList" style="display:flex; flex-direction:column; gap:8px;">
+              <!-- Contactos gerados dinamicamente -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           ABA 3: CHAMADA P2P
+           ==================================================================== -->
+      <section class="tab-view" id="view-call">
+        <div class="m-call-screen">
+          <div class="m-call-top">
+            <div class="m-call-info">
+              <h3 id="mCallPartnerName">Nenhum Par Conectado</h3>
+              <span class="m-call-timer" id="mCallDuration">00:00</span>
+            </div>
+          </div>
+
+          <!-- ÁREA DE VÍDEO -->
+          <div class="m-video-container" id="mVideoContainer">
+            <video id="mRemoteVideo" autoplay playsinline></video>
+            
+            <div class="m-video-fallback" id="mVideoFallback">
+              <div class="m-avatar xlarge" id="mCallFallbackAvatar">?</div>
+              <p id="mCallFallbackText">Inicie ou aguarde uma chamada</p>
+            </div>
+
+            <div class="m-local-pip" id="mLocalPip">
+              <video id="mLocalVideo" autoplay playsinline muted></video>
+              <div class="m-local-off-placeholder hidden" id="mLocalOffPlaceholder">
+                <i data-lucide="video-off"></i>
+                <small>Desligada</small>
+              </div>
+              <span>Você</span>
+            </div>
+          </div>
+
+          <!-- ÁREA DE CHAMADA DE VOZ (SEM VÍDEO) -->
+          <div class="m-audio-stage hidden" id="mAudioStage">
+            <audio id="mRemoteAudio" autoplay></audio>
+            <div class="m-audio-call-center">
+              <div class="m-audio-pulse-ring">
+                <div class="m-avatar xlarge m-audio-avatar" id="mAudioAvatar">?</div>
+              </div>
+              <h2 id="mAudioCallerName">Amigo</h2>
+              <span class="m-audio-tag"><i data-lucide="phone"></i> Chamada de Voz P2P</span>
+            </div>
+          </div>
+
+          <!-- BOTÕES DE AÇÃO DA CHAMADA -->
+          <div class="m-call-actions">
+            <!-- Botões quando NÃO está em chamada ativa -->
+            <div class="m-pre-call-actions" id="mPreCallActions">
+              <button class="m-round-btn m-btn-call-audio" id="mStartAudioCallBtn" disabled title="Chamada de Voz">
+                <i data-lucide="phone"></i>
+              </button>
+              <button class="m-round-btn m-btn-call-video" id="mStartVideoCallBtn" disabled title="Chamada de Vídeo">
+                <i data-lucide="video"></i>
+              </button>
+            </div>
+
+            <!-- Botões quando ESTÁ em chamada ativa -->
+            <div class="m-active-call-actions hidden" id="mActiveCallActions">
+              <button class="m-round-btn" id="mToggleMuteBtn" title="Silenciar">
+                <i data-lucide="mic"></i>
+              </button>
+              <button class="m-round-btn" id="mToggleCamBtn" title="Câmara On/Off">
+                <i data-lucide="video"></i>
+              </button>
+              <button class="m-round-btn" id="mFlipCamBtn" title="Inverter Câmara">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+              <button class="m-round-btn m-btn-danger" id="mHangupBtn" title="Terminar Chamada">
+                <i data-lucide="phone-off"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           ABA 4: DEFINIÇÕES & PERFIL
+           ==================================================================== -->
+      <section class="tab-view" id="view-settings">
+        <div class="tab-scroll-body">
+          <!-- CARD: FOTO DE PERFIL -->
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="camera"></i> Foto de Perfil</h4>
+            <div class="m-photo-setting-row">
+              <div class="m-avatar large" id="mSettingsAvatarPreview">Eu</div>
+              <div class="m-photo-setting-btns">
+                <input type="file" id="mSettingsPhotoInput" accept="image/*" style="display:none;">
+                <button class="m-btn m-btn-sm m-btn-primary" id="mUploadPhotoBtn">
+                  <i data-lucide="upload"></i> Escolher Foto
+                </button>
+                <button class="m-btn m-btn-sm m-btn-danger hidden" id="mRemovePhotoBtn">
+                  <i data-lucide="trash-2"></i> Remover
+                </button>
+              </div>
+            </div>
+            <small style="color:var(--text-muted); font-size:0.75rem;">A foto fica guardada no telemóvel e é partilhada com os seus amigos.</small>
+          </div>
+
+          <!-- CARD: NOME DE EXIBIÇÃO -->
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="user"></i> Nome de Exibição</h4>
+            <div class="m-connect-input-group">
+              <input type="text" id="mSettingsNickInput" value="Utilizador" maxlength="18">
+              <button class="m-btn m-btn-primary" id="mSaveNickBtn">
+                <i data-lucide="check"></i> Guardar
+              </button>
+            </div>
+          </div>
+
+          <!-- CARD: ID FIXO PERMANENTE -->
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="hash"></i> O Meu ID Permanente</h4>
+            <p class="m-card-desc">Este ID é fixo e nunca muda. Pode também escolher um ID personalizado (ex: victor-mobile):</p>
+            <div class="m-connect-input-group">
+              <input type="text" id="mSettingsCustomIdInput" maxlength="24" placeholder="Ex: victor-mobile">
+              <button class="m-btn m-btn-primary" id="mSaveCustomIdBtn" title="Guardar ID">
+                <i data-lucide="save"></i>
+              </button>
+              <button class="m-btn m-btn-secondary" id="mRegenCustomIdBtn" title="Gerar Novo ID">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="palette"></i> Aparência</h4>
+            <div class="m-theme-selector">
+              <button class="m-theme-btn active" id="mSetThemeLight">
+                <i data-lucide="sun"></i> Modo Claro
+              </button>
+              <button class="m-theme-btn" id="mSetThemeDark">
+                <i data-lucide="moon"></i> Modo Escuro
+              </button>
+            </div>
+          </div>
+
+          <div class="m-card">
+            <h4 class="m-card-title"><i data-lucide="shield-check"></i> Segurança & Rede P2P</h4>
+            <ul class="m-info-list">
+              <li><span>Criptografia:</span> <strong>WebRTC DTLS / SCTP</strong></li>
+              <li><span>Topologia:</span> <strong>Ponto a Ponto Direto</strong></li>
+              <li><span>Servidores Intermédios:</span> <strong>Nenhum (Airgap data)</strong></li>
+              <li><span>Servidor STUN:</span> <strong>Google STUN 19302</strong></li>
+            </ul>
+          </div>
+
+          <div class="m-card text-center">
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Prefere usar a versão desktop completa?</p>
+            <a href="index.html" class="m-btn m-btn-secondary m-btn-full">
+              <i data-lucide="monitor"></i> Mudar para a Versão de Computador
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- BARRA DE NAVEGAÇÃO INFERIOR (BOTTOM NAVIGATION TABS) -->
+    <nav class="mobile-bottom-nav">
+      <button class="nav-tab active" data-target="view-chat">
+        <div class="nav-icon-wrap">
+          <i data-lucide="message-square"></i>
+          <span class="nav-badge-dot hidden" id="mUnreadDot"></span>
+        </div>
+        <span>Chat</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-connect">
+        <div class="nav-icon-wrap">
+          <i data-lucide="link-2"></i>
+        </div>
+        <span>Conectar</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-call">
+        <div class="nav-icon-wrap">
+          <i data-lucide="video"></i>
+        </div>
+        <span>Chamada</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-settings">
+        <div class="nav-icon-wrap">
+          <i data-lucide="settings"></i>
+        </div>
+        <span>Opções</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL: CHAMADA A RECEBER NO TELEMÓVEL -->
+  <div class="m-incoming-call-overlay hidden" id="mIncomingCallModal">
+    <div class="m-incoming-card">
+      <div class="m-incoming-avatar-wrap">
+        <div class="m-avatar large" id="mIncomingAvatar">?</div>
+      </div>
+      <h3 id="mIncomingCaller">Amigo</h3>
+      <p id="mIncomingType">A ligar para chamada de vídeo...</p>
+      <div class="m-incoming-btns">
+        <button class="m-round-btn m-btn-danger" id="mRejectCallBtn">
+          <i data-lucide="phone-off"></i>
+        </button>
+        <button class="m-round-btn m-btn-success" id="mAcceptCallBtn">
+          <i data-lucide="phone"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX DE IMAGENS -->
+  <div class="m-lightbox hidden" id="mLightbox">
+    <button class="m-lightbox-close" id="mCloseLightboxBtn"><i data-lucide="x"></i></button>
+    <img src="" id="mLightboxImg" alt="Imagem">
+  </div>
+
+  <!-- TOASTS DE NOTIFICAÇÃO -->
+  <div class="m-toast-container" id="mToastContainer"></div>
+
+  <!-- MODAL: AJUDA DE PERMISSÃO DE CÂMARA E MICROFONE -->
+  <div class="m-incoming-call-overlay hidden" id="mPermissionHelpModal">
+    <div class="m-incoming-card" style="text-align: left; max-width: 360px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <h3 style="display:flex; align-items:center; gap:8px; font-size:1.05rem;">
+          <i data-lucide="shield-alert" style="color:var(--primary);"></i> Permissão de Mídia
+        </h3>
+        <button class="m-lightbox-close" id="mClosePermHelpBtn" style="position:static; width:32px; height:32px; color:var(--text-main); background:var(--bg-surface-subtle);">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.45; margin-top:8px;">
+        Por regras de segurança dos telemóveis (Apple e Google), a câmara e o microfone só são liberados em ligações <strong>HTTPS</strong> ou quando explicitamente autorizados nas definições do navegador.
+      </p>
+
+      <div style="background:var(--bg-surface-subtle); padding:10px 12px; border-radius:var(--radius-sm); font-size:0.8rem; line-height:1.4; margin-top:8px;">
+        <strong style="color:var(--primary); display:block; margin-bottom:4px;">No Android (Google Chrome):</strong>
+        1. Digite na barra do Chrome: <br><code style="color:var(--secondary); word-break:break-all;">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code><br>
+        2. Adicione este site: <br><code id="mHelpOriginUrl">http://...</code><br>
+        3. Mude para <strong>Enabled</strong> e reinicie o Chrome.
+      </div>
+
+      <div style="background:var(--bg-surface-subtle); padding:10px 12px; border-radius:var(--radius-sm); font-size:0.8rem; line-height:1.4; margin-top:8px;">
+        <strong style="color:var(--primary); display:block; margin-bottom:4px;">No iPhone (Safari) ou Geral:</strong>
+        Basta publicar o chat na Internet (ex: GitHub Pages ou Vercel), onde o HTTPS é automático e o telemóvel pede a permissão num clique!
+      </div>
+
+      <button class="m-btn m-btn-primary m-btn-full" id="mUnderstoodPermBtn" style="margin-top:10px;">
+        Compreendi
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="webrtc.js"></script>
+  <script src="mobile.js"></script>
+</body>
+</html>

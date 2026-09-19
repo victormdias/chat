@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="p2p-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#p2p-grad)" />
+  <path d="M256 120 C180 120 120 170 120 235 C120 275 145 310 185 330 L170 380 L230 350 C238 351 247 352 256 352 C332 352 392 302 392 235 C392 170 332 120 256 120 Z" fill="#ffffff" opacity="0.95" />
+  <circle cx="210" cy="235" r="16" fill="#0284c7" />
+  <circle cx="256" cy="235" r="16" fill="#0284c7" />
+  <circle cx="302" cy="235" r="16" fill="#0284c7" />
+</svg>
